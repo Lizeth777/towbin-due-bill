@@ -916,7 +916,7 @@ async function sendAll() {
   if (!stock || !customer) { alert("Stock # and Customer Name are required before sending."); return; }
 
   const vehicle = v("vehicleDesc"), sales = v("salesperson"), date = v("billDate"), license = v("licensePlate");
-  const billId = "bill_" + Date.now();
+  const billId = generateBillId();
   const vendorStatuses = {};
 
   // Save to tracker first
@@ -1104,7 +1104,7 @@ async function copyAndSave() {
   if (!stock || !customer) { alert("Stock # and Customer Name are required before sending."); return; }
 
   const vehicle = v("vehicleDesc"), sales = v("salesperson"), date = v("billDate"), license = v("licensePlate");
-  const billId = "bill_" + Date.now();
+  const billId = generateBillId();
   const vendorStatuses = {};
 
   let allMessages = "";
@@ -1157,6 +1157,19 @@ async function copyAndSave() {
   ["stockNum","customerName","vehicleDesc","salesperson","licensePlate"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
   document.getElementById("previewBox").textContent = "Select work items above to preview the vendor text messages.";
   } catch(err) { alert("Error: " + err.message); }
+}
+
+function generateBillId() {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const dateStr = mm + dd + yy;
+  // Get sequence number for today
+  const seqKey = "billSeq_" + dateStr;
+  const seq = parseInt(localStorage.getItem(seqKey) || "0") + 1;
+  localStorage.setItem(seqKey, seq);
+  return "DB-" + dateStr + "-" + String(seq).padStart(3, '0');
 }
 
 function getBillStatus(bill) {
