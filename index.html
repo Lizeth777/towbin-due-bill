@@ -594,6 +594,22 @@ input::placeholder { color: var(--gray-400); }
 </head>
 <body>
 
+<script>
+async function checkPassword() {
+  const input = document.getElementById("pwdInput").value;
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  const hashed = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+  const PWD_HASH = "6d46d54ffa54a5eb9554b1a62c1cc2f2897c79f311296e5c56147bdee8d7e908";
+  if (hashed === PWD_HASH) {
+    sessionStorage.setItem("tk_auth", "1");
+    document.getElementById("passwordGate").style.display = "none";
+  } else {
+    document.getElementById("pwdError").style.display = "block";
+    document.getElementById("pwdInput").value = "";
+    document.getElementById("pwdInput").focus();
+  }
+}
+</script>
 <!-- PASSWORD GATE -->
 <div id="passwordGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#05141f;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;">
   <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;">
@@ -610,7 +626,7 @@ input::placeholder { color: var(--gray-400); }
       <input type="password" id="pwdInput" placeholder="Password"
         style="width:100%;padding:12px 44px 12px 14px;border:1.5px solid #163348;border-radius:8px;font-size:16px;font-family:inherit;background:#0d1b2a;color:#fff;outline:none;"
         onkeydown="if(event.key==='Enter') checkPassword()">
-      <button onclick="togglePwdVisibility()" type="button"
+      <button onclick="const i=document.getElementById('pwdInput');const e=document.getElementById('eyeIcon');if(i.type==='password'){i.type='text';e.innerHTML='<path d=\"M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24\"/><line x1=\"1\" y1=\"1\" x2=\"23\" y2=\"23\"/>'}else{i.type='password';e.innerHTML='<path d=\"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>'}" type="button"
         style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#9aa3b0;">
         <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
@@ -1919,7 +1935,7 @@ async function hashString(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-async function checkPassword() {
+async async function checkPassword() {
   const input = document.getElementById("pwdInput").value;
   const hashed = await hashString(input);
   if (hashed === PWD_HASH) {
