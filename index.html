@@ -1041,7 +1041,8 @@ async function whatsappAll() {
   }
 
   // Auto-note
-  const autoNoteText = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " — Texted vendor to set up appt.";
+  const autoTs = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  const autoNoteText = autoTs + " — Texted vendor to set up appt.";
   try { await apiPost({ action:"updateNote", billId, note: autoNoteText }); if(_billsCache[0]) _billsCache[0].notes = autoNoteText; } catch(e) {}
 
   // Open WhatsApp for each vendor
@@ -1104,7 +1105,8 @@ async function sendAll() {
   }
 
   // Auto-note
-  const autoNoteText = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " — Texted vendor to set up appt.";
+  const autoTs = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  const autoNoteText = autoTs + " — Texted vendor to set up appt.";
   try { await apiPost({ action:"updateNote", billId, note: autoNoteText }); if(_billsCache[0]) _billsCache[0].notes = autoNoteText; } catch(e) {}
 
   // Open native texts one by one
@@ -1303,7 +1305,8 @@ async function copyAndSave() {
   }
 
   // Auto-note
-  const autoNoteText = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " — Texted vendor to set up appt.";
+  const autoTs = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  const autoNoteText = autoTs + " — Texted vendor to set up appt.";
   try { await apiPost({ action:"updateNote", billId, note: autoNoteText }); if(_billsCache[0]) _billsCache[0].notes = autoNoteText; } catch(e) {}
 
   // Copy to clipboard
@@ -1402,10 +1405,10 @@ function renderTracker() {
   bills.forEach(bill => {
     const st = getBillStatus(bill);
     const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
-    const days = getDaysRemaining(bill.dueDate);
+    const days = (bill.dueDate && String(bill.dueDate).trim() && String(bill.dueDate) !== "0") ? getDaysRemaining(bill.dueDate) : null;
     let daysHtml = "—";
     let rowClass = "";
-    if (days !== null && getBillStatus(bill) !== "done") {
+    if (days !== null && !isNaN(days) && getBillStatus(bill) !== "done") {
       if (days < 0) { daysHtml = `<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`; rowClass = "overdue-row"; }
       else if (days === 0) { daysHtml = `<span class="days-remaining overdue">DUE TODAY</span>`; rowClass = "overdue-row"; }
       else if (days <= 3) { daysHtml = `<span class="days-remaining due-soon">${days}d left</span>`; }
@@ -1429,10 +1432,11 @@ function renderTracker() {
       <td colspan="8">
         <div class="detail-inner">
           <div style="padding:8px 0 12px;border-bottom:1px solid var(--gray-100);margin-bottom:10px;">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:6px;">Notes</div>
-            <div style="display:flex;gap:8px;align-items:flex-start;">
-              <input type="text" id="note_${bill.id}" value="${(bill.notes||"").replace(/"/g,"&quot;")}" placeholder="Add a note..." style="flex:1;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;">
-              <button class="btn-ghost" onclick="saveNote('${bill.id}')">Save Note</button>
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:8px;">Note History</div>
+            <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:120px;overflow-y:auto;background:var(--gray-50);border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="note_${bill.id}" placeholder="Add a new note..." style="flex:1;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;">
+              <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
             </div>
           </div>
           <div class="detail-title">Vendor Status — Update as work is completed</div>
@@ -1516,22 +1520,34 @@ function printBill(billId) {
 
 async function saveNote(billId) {
   const input = document.getElementById("note_" + billId);
-  if (!input) return;
-  let note = input.value.trim();
-  const AUTO = "Texted vendor to set up appt.";
-  // Always ensure the auto-note is at the end
-  if (!note.includes(AUTO)) {
-    note = note ? note + " | " + AUTO : AUTO;
-    input.value = note;
-  }
+  const newText = input ? input.value.trim() : "";
+  if (!newText) { toast("Type a note first."); return; }
+
+  const bill = getBills().find(b => b.id === billId);
+  const existing = (bill && bill.notes) ? bill.notes : "";
+  const timestamp = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+
+  // Append new note with timestamp
+  const combined = existing
+    ? existing + "\n" + timestamp + " — " + newText
+    : timestamp + " — " + newText;
+
   try {
-    await apiPost({ action:"updateNote", billId, note });
-    const bill = getBills().find(b => b.id === billId);
-    if (bill) bill.notes = note;
+    await apiPost({ action:"updateNote", billId, note: combined });
+    if (bill) bill.notes = combined;
+    if (input) input.value = "";
+    // Re-render the notes display
+    const display = document.getElementById("notesDisplay_" + billId);
+    if (display) display.innerHTML = formatNotes(combined);
     toast("Note saved.");
   } catch(e) {
     toast("Failed to save note: " + e.message);
   }
+}
+
+function formatNotes(notes) {
+  if (!notes) return "<em style=\"color:var(--gray-400);font-size:12px;\">No notes yet.</em>";
+  return notes.split("\n").map(line => `<div style="padding:4px 0;font-size:12px;color:var(--gray-600);border-bottom:1px solid var(--gray-100);">${line}</div>`).join("");
 }
 
 function resendWhatsApp(billId, vendor) {
