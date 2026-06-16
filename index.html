@@ -605,9 +605,15 @@ input::placeholder { color: var(--gray-400); }
   </div>
   <div style="background:#1a2e45;border-radius:12px;padding:28px 32px;width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
     <div style="font-size:12px;font-weight:600;color:#9aa3b0;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Enter Password</div>
-    <input type="password" id="pwdInput" placeholder="Password"
-      style="width:100%;padding:12px 14px;border:1.5px solid #243d57;border-radius:8px;font-size:16px;font-family:inherit;background:#0d1b2a;color:#fff;outline:none;margin-bottom:10px;"
-      onkeydown="if(event.key==='Enter') checkPassword()">
+    <div style="position:relative;margin-bottom:10px;">
+      <input type="password" id="pwdInput" placeholder="Password"
+        style="width:100%;padding:12px 44px 12px 14px;border:1.5px solid #243d57;border-radius:8px;font-size:16px;font-family:inherit;background:#0d1b2a;color:#fff;outline:none;"
+        onkeydown="if(event.key==='Enter') checkPassword()">
+      <button onclick="togglePwdVisibility()" type="button"
+        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:#9aa3b0;">
+        <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
     <button onclick="checkPassword()"
       style="width:100%;padding:13px;background:#c8102e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;">
       Sign In
@@ -685,6 +691,7 @@ input::placeholder { color: var(--gray-400); }
     </div>
     <div id="scanSuccess" style="display:none;margin-top:14px;padding:12px 14px;background:var(--success-bg);border:1px solid #b0dfc4;border-radius:8px;font-size:13px;font-weight:600;color:var(--success);">
       ✓ Due bill scanned — fields populated below. Review and hit Send.
+      <div style="font-size:11px;font-weight:400;margin-top:4px;color:var(--success);">📎 When sending via WhatsApp, the message will remind you to attach this photo.</div>
     </div>
     <div id="scanError" style="display:none;margin-top:14px;padding:12px 14px;background:#fdf0f2;border:1px solid #f0b0b8;border-radius:8px;font-size:13px;color:#8a001a;"></div>
   </div>
@@ -1088,8 +1095,9 @@ async function whatsappAll() {
     }
     const body = buildMsg(vendor, items, stock, customer, vehicle, sales, date);
     const phone = to.replace(/\D/g,"");
-    window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(body), "_blank");
-    addLog("✓ WhatsApp opened for " + vendor, "success");
+    const waNote = window._lastDueBillFile ? "\n\n📎 Please also attach the due bill photo from this conversation." : "";
+    window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(body + waNote), "_blank");
+    addLog("✓ WhatsApp opened for " + vendor + (window._lastDueBillFile ? " (attach photo manually)" : ""), "success");
     idx++;
     if (idx < vendors.length) setTimeout(openNextWhatsApp, 1500);
     else setTimeout(() => toast("WhatsApp opened for all vendors."), 500);
@@ -1422,63 +1430,116 @@ function renderTracker() {
     body.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No due bills found.</div></div>';
     return;
   }
-  let html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Due Date</th><th>Status</th><th></th></tr></thead><tbody>';
-  bills.forEach(bill => {
-    const st = getBillStatus(bill);
-    const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
-    const days = (bill.dueDate && String(bill.dueDate).trim() && String(bill.dueDate) !== "0") ? getDaysRemaining(bill.dueDate) : null;
-    let daysHtml = "—";
-    let rowClass = "";
-    if (days !== null && !isNaN(days) && getBillStatus(bill) !== "done") {
-      if (days < 0) { daysHtml = `<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`; rowClass = "overdue-row"; }
-      else if (days === 0) { daysHtml = `<span class="days-remaining overdue">DUE TODAY</span>`; rowClass = "overdue-row"; }
-      else if (days <= 3) { daysHtml = `<span class="days-remaining due-soon">${days}d left</span>`; }
-      else { daysHtml = `<span class="days-remaining ok">${days}d left</span>`; }
-    }
-    html += `<tr class="${rowClass}">
-      <td style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap;">${bill.id||"—"}</td>
-      <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date ? String(bill.date).split("T")[0] : "—"}</td>
-      <td style="font-weight:700;color:var(--navy);">${bill.stock||"—"}</td>
-      <td style="font-size:13px;">${bill.customer||"—"}</td>
-      <td style="font-size:12px;color:var(--gray-600);">${bill.vehicle||"—"}</td>
-      <td>${daysHtml}</td>
-      <td>${badge}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="margin-right:5px;">Details</button>
-        <button class="btn-ghost" onclick="printBill('${bill.id}')" style="margin-right:5px;">Print</button>
-        <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')">Delete</button>
-      </td>
-    </tr>
-    <tr class="detail-tr" id="detail_${bill.id}" style="display:none;">
-      <td colspan="8">
-        <div class="detail-inner">
-          <div style="padding:8px 0 12px;border-bottom:1px solid var(--gray-100);margin-bottom:10px;">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:8px;">Note History</div>
-            <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:120px;overflow-y:auto;background:var(--gray-50);border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="text" id="note_${bill.id}" placeholder="Add a new note..." style="flex:1;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;">
-              <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
-            </div>
+  const isMobile = window.innerWidth <= 700;
+  if (isMobile) {
+    let html = "";
+    bills.forEach(bill => {
+      const st = getBillStatus(bill);
+      const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
+      const days = (bill.dueDate && String(bill.dueDate).trim() && String(bill.dueDate) !== "0") ? getDaysRemaining(bill.dueDate) : null;
+      let daysHtml = "";
+      let cardBorder = "";
+      if (days !== null && !isNaN(days) && st !== "done") {
+        if (days < 0) { daysHtml = `<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`; cardBorder = "border-left:4px solid #c00;"; }
+        else if (days === 0) { daysHtml = `<span class="days-remaining overdue">DUE TODAY</span>`; cardBorder = "border-left:4px solid #c00;"; }
+        else if (days <= 3) { daysHtml = `<span class="days-remaining due-soon">${days}d left</span>`; cardBorder = "border-left:4px solid #a07000;"; }
+        else { daysHtml = `<span class="days-remaining ok">${days}d left</span>`; }
+      }
+      html += `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:10px;padding:14px 16px;margin-bottom:10px;${cardBorder}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--red);">${bill.id||"—"}</div>
+            <div style="font-size:22px;font-weight:700;color:var(--navy);margin-top:1px;">Stock #${bill.stock||"—"}</div>
           </div>
-          <div class="detail-title">Vendor Status — Update as work is completed</div>
+          <div style="text-align:right;">${badge}${daysHtml ? `<div style="margin-top:4px;">${daysHtml}</div>` : ""}</div>
+        </div>
+        <div style="font-size:14px;font-weight:600;color:var(--gray-800);">${bill.customer||"—"}</div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:2px;margin-bottom:12px;">${bill.vehicle||"—"}&nbsp;·&nbsp;${bill.date ? String(bill.date).split("T")[0] : "—"}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+          <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="text-align:center;padding:9px 4px;font-size:12px;">Details</button>
+          <button class="btn-ghost" onclick="printBill('${bill.id}')" style="text-align:center;padding:9px 4px;font-size:12px;">Print</button>
+          <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')" style="text-align:center;padding:9px 4px;font-size:12px;">Delete</button>
+        </div>
+        <div id="detail_${bill.id}" style="display:none;margin-top:12px;border-top:1px solid var(--gray-100);padding-top:12px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:8px;">Note History</div>
+          <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:100px;overflow-y:auto;background:var(--gray-50);border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <input type="text" id="note_${bill.id}" placeholder="Add a note..." style="flex:1;padding:10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:14px;font-family:inherit;">
+            <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
+          </div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:8px;">Vendor Status</div>
           ${Object.entries(bill.vendorStatuses||{}).map(([vendor, vs]) => `
-            <div class="item-status-row">
-              <div class="item-status-name">${vendor}</div>
-              <div class="item-status-items">${(vs.items||[]).join(", ")}</div>
-              <select class="item-status-select" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\'")}',this.value)">
+            <div style="padding:10px 0;border-bottom:1px solid var(--gray-100);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <div style="font-size:13px;font-weight:700;">${vendor}</div>
+                ${vs.phone ? `<div style="display:flex;gap:4px;"><button class="btn-ghost" style="font-size:11px;padding:4px 8px;" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\'")}')">SMS</button><button class="btn-ghost" style="font-size:11px;padding:4px 8px;" onclick="resendWhatsApp('${bill.id}','${vendor.replace(/'/g,"\'")}')">WA</button></div>` : ""}
+              </div>
+              <div style="font-size:12px;color:var(--gray-600);margin-bottom:8px;">${(vs.items||[]).join(", ")}</div>
+              <select class="item-status-select" style="width:100%;font-size:14px;padding:10px;" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\'")}',this.value)">
                 <option value="open" ${vs.status==="open"?"selected":""}>Open</option>
                 <option value="scheduled" ${vs.status==="scheduled"?"selected":""}>Scheduled</option>
                 <option value="done" ${vs.status==="done"?"selected":""}>Completed</option>
               </select>
-              ${vs.phone ? `<button class="btn-ghost" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\'")}')">Resend</button>` : '<span style="font-size:11px;color:var(--gray-400);">No number</span>'}
             </div>`).join("")}
         </div>
-      </td>
-    </tr>`;
-  });
-  html += "</tbody></table>";
-  body.innerHTML = html;
-}
+      </div>`;
+    });
+    body.innerHTML = html;
+  } else {
+    let html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Due Date</th><th>Status</th><th></th></tr></thead><tbody>';
+    bills.forEach(bill => {
+      const st = getBillStatus(bill);
+      const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
+      const days = (bill.dueDate && String(bill.dueDate).trim() && String(bill.dueDate) !== "0") ? getDaysRemaining(bill.dueDate) : null;
+      let daysHtml = "—"; let rowClass = "";
+      if (days !== null && !isNaN(days) && st !== "done") {
+        if (days < 0) { daysHtml = `<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`; rowClass = "overdue-row"; }
+        else if (days === 0) { daysHtml = `<span class="days-remaining overdue">DUE TODAY</span>`; rowClass = "overdue-row"; }
+        else if (days <= 3) { daysHtml = `<span class="days-remaining due-soon">${days}d left</span>`; }
+        else { daysHtml = `<span class="days-remaining ok">${days}d left</span>`; }
+      }
+      html += `<tr class="${rowClass}">
+        <td style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap;">${bill.id||"—"}</td>
+        <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date ? String(bill.date).split("T")[0] : "—"}</td>
+        <td style="font-weight:700;color:var(--navy);">${bill.stock||"—"}</td>
+        <td style="font-size:13px;">${bill.customer||"—"}</td>
+        <td style="font-size:12px;color:var(--gray-600);">${bill.vehicle||"—"}</td>
+        <td>${daysHtml}</td>
+        <td>${badge}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="margin-right:4px;">Details</button>
+          <button class="btn-ghost" onclick="printBill('${bill.id}')" style="margin-right:4px;">Print</button>
+          <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')">Delete</button>
+        </td>
+      </tr>
+      <tr class="detail-tr" id="detail_${bill.id}" style="display:none;">
+        <td colspan="8">
+          <div class="detail-inner">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:8px;">Note History</div>
+            <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:120px;overflow-y:auto;background:var(--gray-50);border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+              <input type="text" id="note_${bill.id}" placeholder="Add a new note..." style="flex:1;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;">
+              <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
+            </div>
+            <div class="detail-title">Vendor Status</div>
+            ${Object.entries(bill.vendorStatuses||{}).map(([vendor, vs]) => `
+              <div class="item-status-row">
+                <div class="item-status-name">${vendor}</div>
+                <div class="item-status-items">${(vs.items||[]).join(", ")}</div>
+                <select class="item-status-select" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\'")}',this.value)">
+                  <option value="open" ${vs.status==="open"?"selected":""}>Open</option>
+                  <option value="scheduled" ${vs.status==="scheduled"?"selected":""}>Scheduled</option>
+                  <option value="done" ${vs.status==="done"?"selected":""}>Completed</option>
+                </select>
+                ${vs.phone ? `<div style='display:flex;gap:4px;'><button class="btn-ghost" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\'")}')">SMS</button><button class="btn-ghost" onclick="resendWhatsApp('${bill.id}','${vendor.replace(/'/g,"\'")}')">WA</button></div>` : '<span style="font-size:11px;color:var(--gray-400);">No number</span>'}
+              </div>`).join("")}
+          </div>
+        </td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+    body.innerHTML = html;
+  }
 
 function toggleDetail(id) {
   const row = document.getElementById("detail_" + id);
@@ -1818,6 +1879,9 @@ async function processScanFile(file) {
     updatePreview();
     document.getElementById("scanStatus").style.display = "none";
     document.getElementById("scanSuccess").style.display = "block";
+    // Store image preview URL for sharing
+    window._lastDueBillImage = URL.createObjectURL(file);
+    window._lastDueBillFile = file;
 
   } catch(e) {
     document.getElementById("scanStatus").style.display = "none";
@@ -1840,6 +1904,18 @@ function fileToBase64(file) {
 // ---- PASSWORD GATE ----
 const PWD_HASH = "6d46d54ffa54a5eb9554b1a62c1cc2f2897c79f311296e5c56147bdee8d7e908";
 const SESSION_KEY = "tk_auth";
+
+function togglePwdVisibility() {
+  const input = document.getElementById("pwdInput");
+  const icon = document.getElementById("eyeIcon");
+  if (input.type === "password") {
+    input.type = "text";
+    icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  } else {
+    input.type = "password";
+    icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+  }
+}
 
 async function hashString(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
