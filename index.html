@@ -1941,26 +1941,10 @@ function togglePwdVisibility() {
   }
 }
 
-async function hashString(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
-
-async async function checkPassword() {
-  const input = document.getElementById("pwdInput").value;
-  const hashed = await hashString(input);
-  if (hashed === PWD_HASH) {
-    sessionStorage.setItem(SESSION_KEY, "1");
-    document.getElementById("passwordGate").style.display = "none";
-  } else {
-    document.getElementById("pwdError").style.display = "block";
-    document.getElementById("pwdInput").value = "";
-    document.getElementById("pwdInput").focus();
-  }
-}
+// checkPassword and hashString defined in early script block above
 
 // Check if already authenticated this session
-if (sessionStorage.getItem(SESSION_KEY) === "1") {
+if (sessionStorage.getItem("tk_auth") === "1") {
   document.getElementById("passwordGate").style.display = "none";
 } else {
   // Focus password field
