@@ -595,13 +595,34 @@ input::placeholder { color: var(--gray-400); }
 <body>
 
 <script>
+const TK_KEY = "tk_auth_ts";
+const TK_EXPIRY = 12 * 60 * 60 * 1000; // 12 hours in ms
+
+function isLoggedIn() {
+  const ts = localStorage.getItem(TK_KEY);
+  if (!ts) return false;
+  return (Date.now() - parseInt(ts)) < TK_EXPIRY;
+}
+
+function setLoggedIn() {
+  localStorage.setItem(TK_KEY, Date.now().toString());
+}
+
+function signOut() {
+  localStorage.removeItem(TK_KEY);
+  document.getElementById("passwordGate").style.display = "flex";
+  document.getElementById("pwdInput").value = "";
+  document.getElementById("pwdError").style.display = "none";
+  setTimeout(() => { document.getElementById("pwdInput").focus(); }, 100);
+}
+
 async function checkPassword() {
   const input = document.getElementById("pwdInput").value;
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
   const hashed = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
   const PWD_HASH = "6d46d54ffa54a5eb9554b1a62c1cc2f2897c79f311296e5c56147bdee8d7e908";
   if (hashed === PWD_HASH) {
-    sessionStorage.setItem("tk_auth", "1");
+    setLoggedIn();
     document.getElementById("passwordGate").style.display = "none";
   } else {
     document.getElementById("pwdError").style.display = "block";
@@ -609,6 +630,7 @@ async function checkPassword() {
     document.getElementById("pwdInput").focus();
   }
 }
+
 function togglePwd() {
   const i = document.getElementById("pwdInput");
   const e = document.getElementById("eyeIcon");
@@ -619,6 +641,13 @@ function togglePwd() {
     i.type = "password";
     e.innerHTML = "<path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/>";
   }
+}
+
+// Check on load
+if (isLoggedIn()) {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("passwordGate").style.display = "none";
+  });
 }
 </script>
 <!-- PASSWORD GATE -->
@@ -648,7 +677,7 @@ function togglePwd() {
     </button>
     <div id="pwdError" style="color:#f08090;font-size:12px;margin-top:10px;text-align:center;display:none;">Incorrect password. Try again.</div>
   </div>
-  <div style="color:#5a6474;font-size:11px;">Towbin Kia — Internal Use Only</div>
+  <div style="color:#5a6474;font-size:11px;">Towbin Kia — Internal Use Only &nbsp;|&nbsp; <span style="color:#163348;">v1.0.6</span></div>
 </div>
 
 <!-- HEADER -->
@@ -903,6 +932,17 @@ function togglePwd() {
 
   <div class="alert alert-info" style="margin-top:4px;">
     <strong>Daily reminder tip:</strong> Each morning, go to the Open Items tab and click "Send Daily Reminders" to automatically text every vendor with open or scheduled work. This keeps vendors accountable without any manual follow-up.
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title-icon">
+        <div class="card-icon">🔒</div>
+        <span class="card-title">Session</span>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">You stay signed in for 12 hours. Sign out manually if you're on a shared device.</p>
+    <button class="btn-secondary" onclick="signOut()" style="color:var(--red);border-color:var(--red);">Sign Out</button>
   </div>
 
   <div class="card" style="border-color:#f5c0c8;">
@@ -1943,13 +1983,19 @@ function togglePwdVisibility() {
 
 // checkPassword and hashString defined in early script block above
 
-// Check if already authenticated this session
-if (sessionStorage.getItem("tk_auth") === "1") {
+// Check auth on load + auto-expire check every minute
+if (isLoggedIn()) {
   document.getElementById("passwordGate").style.display = "none";
 } else {
-  // Focus password field
   setTimeout(() => { const el = document.getElementById("pwdInput"); if(el) el.focus(); }, 100);
 }
+// Auto sign-out check every 60 seconds
+setInterval(() => {
+  if (!isLoggedIn() && document.getElementById("passwordGate").style.display === "none") {
+    signOut();
+    toast("Session expired — please sign in again.");
+  }
+}, 60000);
 
 document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
 initYearDropdown();
