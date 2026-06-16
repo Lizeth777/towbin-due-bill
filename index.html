@@ -1331,7 +1331,7 @@ async function processScanFile(file) {
     const response = await fetch(scriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ base64, mediaType })
+      body: JSON.stringify({ action: "scanBill", base64, mediaType })
     });
 
     if (!response.ok) throw new Error("Request failed: " + response.status);
