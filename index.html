@@ -494,6 +494,12 @@ input::placeholder { color: var(--gray-400); }
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.overdue-row td { background: #fff8f0 !important; }
+.overdue-badge { background: #ffe0b2; color: #b05000; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:6px; }
+.days-remaining { font-size:11px; font-weight:600; }
+.days-remaining.overdue { color: #c00; }
+.days-remaining.due-soon { color: #a07000; }
+.days-remaining.ok { color: var(--success); }
 
 @media (max-width: 640px) {
   .fields-grid { grid-template-columns: 1fr; }
@@ -632,6 +638,14 @@ input::placeholder { color: var(--gray-400); }
         <label class="field-label">Salesperson</label>
         <input type="text" id="salesperson" placeholder="Salesperson name">
       </div>
+      <div>
+        <label class="field-label">Due Date (Customer Return)</label>
+        <input type="date" id="dueDate">
+      </div>
+      <div class="field-full">
+        <label class="field-label">Notes</label>
+        <input type="text" id="dealNotes" placeholder="e.g. Customer called twice, waiting on parts...">
+      </div>
     </div>
   </div>
 
@@ -687,6 +701,11 @@ input::placeholder { color: var(--gray-400); }
     </button>
   </div>
 
+  <div style="margin-bottom:12px;">
+    <input type="text" id="trackerSearch" placeholder="Search by stock #, customer, bill ID..." 
+      style="width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:inherit;"
+      oninput="renderTracker()">
+  </div>
   <div class="tracker-wrap">
     <div id="trackerBody"></div>
   </div>
@@ -781,7 +800,7 @@ const ITEMS = [
 const VENDOR_KEYS = [...new Set(ITEMS.map(i => i.vendor))];
 let currentFilter = "all";
 
-const SCRIPT_URL = localStorage.getItem("google_script_url") || "https://script.google.com/macros/s/AKfycbzsc4BgE5sB2XMxES_ZzWJJZJcOw5ZpW5AtIn3mKIhOFGjawZDxW-N0rg2CxBZZm-2Z/exec";
+const SCRIPT_URL = localStorage.getItem("google_script_url") || "https://script.google.com/macros/s/AKfycbyTq072YxvYWJq-omI0t7z43MaBfGZYF8VOkErnVTWFqI-CN_GgGMLmzdNc3BTYO1EP/exec";
 
 // ---- API HELPERS ----
 async function apiGet(action) {
@@ -889,7 +908,7 @@ function updatePreview() {
 
 function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 
-["stockNum","customerName","salesperson","billDate","licensePlate"].forEach(id => {
+["stockNum","customerName","salesperson","billDate","licensePlate","dueDate","dealNotes"].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("input", updatePreview);
 });
@@ -916,6 +935,7 @@ async function sendAll() {
   if (!stock || !customer) { alert("Stock # and Customer Name are required before sending."); return; }
 
   const vehicle = v("vehicleDesc"), sales = v("salesperson"), date = v("billDate"), license = v("licensePlate");
+  const dueDate = v("dueDate"), notes = v("dealNotes");
   const billId = generateBillId();
   const vendorStatuses = {};
 
@@ -925,7 +945,7 @@ async function sendAll() {
     const to = localStorage.getItem(key) || "";
     vendorStatuses[vendor] = { items, status:"open", phone:to, sentAt:new Date().toISOString() };
   }
-  const bill = { id:billId, date, stock, customer, vehicle, license, sales, vendorStatuses, createdAt:new Date().toISOString() };
+  const bill = { id:billId, date, stock, customer, vehicle, license, sales, dueDate, notes, vendorStatuses, createdAt:new Date().toISOString() };
   try {
     const saveRes = await apiPost({ action:"saveBill", bill });
     if (!saveRes.success) throw new Error(saveRes.error || "Save failed");
@@ -945,7 +965,7 @@ async function sendAll() {
     if (idx >= vendors.length) {
       toast("All texts opened. Due bill saved to tracker.");
       ITEMS.forEach(item => { const chk = document.getElementById("chk_" + item.id); if(chk){chk.checked=false; document.getElementById("chip_"+item.id).classList.remove("checked");} });
-      ["stockNum","customerName","vehicleDesc","salesperson","licensePlate"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+      ["stockNum","customerName","vehicleDesc","salesperson","licensePlate","dueDate","dealNotes"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
       document.getElementById("vehicleYear").value = new Date().getFullYear();
       document.getElementById("vehicleMake").value = "";
       document.getElementById("vehicleModel").innerHTML = "<option value=''>Select Model</option>";
@@ -1104,6 +1124,7 @@ async function copyAndSave() {
   if (!stock || !customer) { alert("Stock # and Customer Name are required before sending."); return; }
 
   const vehicle = v("vehicleDesc"), sales = v("salesperson"), date = v("billDate"), license = v("licensePlate");
+  const dueDate = v("dueDate"), notes = v("dealNotes");
   const billId = generateBillId();
   const vendorStatuses = {};
 
@@ -1117,7 +1138,7 @@ async function copyAndSave() {
   }
 
   // Save to sheet
-  const bill = { id:billId, date, stock, customer, vehicle, license, sales, vendorStatuses, createdAt:new Date().toISOString() };
+  const bill = { id:billId, date, stock, customer, vehicle, license, sales, dueDate, notes, vendorStatuses, createdAt:new Date().toISOString() };
   try {
     const saveRes = await apiPost({ action:"saveBill", bill });
     if (saveRes && saveRes.success) {
@@ -1154,7 +1175,7 @@ async function copyAndSave() {
 
   // Reset form
   ITEMS.forEach(item => { const chk = document.getElementById("chk_" + item.id); if(chk){chk.checked=false; document.getElementById("chip_"+item.id).classList.remove("checked");} });
-  ["stockNum","customerName","vehicleDesc","salesperson","licensePlate"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  ["stockNum","customerName","vehicleDesc","salesperson","licensePlate","dueDate","dealNotes"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
   document.getElementById("previewBox").textContent = "Select work items above to preview the vendor text messages.";
   } catch(err) { alert("Error: " + err.message); }
 }
@@ -1193,43 +1214,73 @@ function setFilter(f, el) {
   renderTracker();
 }
 
+function getDaysRemaining(dueDate) {
+  if (!dueDate) return null;
+  const due = new Date(String(dueDate).split("T")[0]);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+}
+
 function renderTracker() {
   renderStats();
-  const bills = getBills().filter(b => {
-    if (currentFilter === "all") return true;
+  const search = (document.getElementById("trackerSearch")?.value || "").toLowerCase();
+  let bills = getBills().filter(b => {
     if (currentFilter === "done") return getBillStatus(b) === "done";
-    if (currentFilter === "scheduled") return getBillStatus(b) === "scheduled";
-    if (currentFilter === "open") {
-      // Show in open if ANY vendor is still open
-      return Object.values(b.vendorStatuses||{}).some(v => v.status === "open");
-    }
+    if (currentFilter === "scheduled") return getBillStatus(b) === "scheduled" && !Object.values(b.vendorStatuses||{}).some(v => v.status === "open");
+    if (currentFilter === "open") return Object.values(b.vendorStatuses||{}).some(v => v.status === "open");
     return true;
   });
+  if (search) {
+    bills = bills.filter(b =>
+      (b.id||"").toLowerCase().includes(search) ||
+      (b.stock||"").toLowerCase().includes(search) ||
+      (b.customer||"").toLowerCase().includes(search) ||
+      (b.vehicle||"").toLowerCase().includes(search) ||
+      (b.sales||"").toLowerCase().includes(search)
+    );
+  }
   const body = document.getElementById("trackerBody");
   if (!bills.length) {
     body.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No due bills found.</div></div>';
     return;
   }
-  let html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Salesperson</th><th>Status</th><th></th></tr></thead><tbody>';
+  let html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Due Date</th><th>Status</th><th></th></tr></thead><tbody>';
   bills.forEach(bill => {
     const st = getBillStatus(bill);
     const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
-    html += `<tr>
+    const days = getDaysRemaining(bill.dueDate);
+    let daysHtml = "—";
+    let rowClass = "";
+    if (days !== null && getBillStatus(bill) !== "done") {
+      if (days < 0) { daysHtml = `<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`; rowClass = "overdue-row"; }
+      else if (days === 0) { daysHtml = `<span class="days-remaining overdue">DUE TODAY</span>`; rowClass = "overdue-row"; }
+      else if (days <= 3) { daysHtml = `<span class="days-remaining due-soon">${days}d left</span>`; }
+      else { daysHtml = `<span class="days-remaining ok">${days}d left</span>`; }
+    }
+    html += `<tr class="${rowClass}">
       <td style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap;">${bill.id||"—"}</td>
       <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date ? String(bill.date).split("T")[0] : "—"}</td>
       <td style="font-weight:700;color:var(--navy);">${bill.stock||"—"}</td>
       <td style="font-size:13px;">${bill.customer||"—"}</td>
       <td style="font-size:12px;color:var(--gray-600);">${bill.vehicle||"—"}</td>
-      <td style="font-size:12px;color:var(--gray-600);">${bill.sales||"—"}</td>
+      <td>${daysHtml}</td>
       <td>${badge}</td>
       <td style="white-space:nowrap;">
         <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="margin-right:5px;">Details</button>
+        <button class="btn-ghost" onclick="printBill('${bill.id}')" style="margin-right:5px;">Print</button>
         <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')">Delete</button>
       </td>
     </tr>
     <tr class="detail-tr" id="detail_${bill.id}" style="display:none;">
       <td colspan="8">
         <div class="detail-inner">
+          <div style="padding:8px 0 12px;border-bottom:1px solid var(--gray-100);margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray-400);margin-bottom:6px;">Notes</div>
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <input type="text" id="note_${bill.id}" value="${(bill.notes||"").replace(/"/g,"&quot;")}" placeholder="Add a note..." style="flex:1;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:6px;font-size:13px;font-family:inherit;">
+              <button class="btn-ghost" onclick="saveNote('${bill.id}')">Save Note</button>
+            </div>
+          </div>
           <div class="detail-title">Vendor Status — Update as work is completed</div>
           ${Object.entries(bill.vendorStatuses||{}).map(([vendor, vs]) => `
             <div class="item-status-row">
@@ -1253,6 +1304,74 @@ function renderTracker() {
 function toggleDetail(id) {
   const row = document.getElementById("detail_" + id);
   if (row) row.style.display = row.style.display === "none" ? "table-row" : "none";
+}
+
+function printBill(billId) {
+  const bill = getBills().find(b => b.id === billId);
+  if (!bill) return;
+  const vendors = Object.entries(bill.vendorStatuses||{});
+  const win = window.open("", "_blank");
+  win.document.write(`
+    <html><head><title>Due Bill ${bill.id}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 30px; max-width: 700px; margin: 0 auto; }
+      .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #c8102e; padding-bottom: 14px; margin-bottom: 20px; }
+      .kia-logo { font-size: 32px; font-weight: 900; color: #c8102e; letter-spacing: -2px; }
+      .title { font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+      .subtitle { font-size: 12px; color: #888; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+      th { background: #0d1b2a; color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+      td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+      .item-row { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 600; }
+      .footer { margin-top: 30px; font-size: 11px; color: #888; text-align: center; }
+      .sig-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 6px; font-size: 11px; color: #888; display: inline-block; width: 200px; }
+      @media print { button { display: none; } }
+    </style></head><body>
+    <div class="header">
+      <div class="kia-logo">KIA</div>
+      <div style="border-left:1px solid #ddd;padding-left:16px;">
+        <div class="title">Towbin Kia — Due Bill</div>
+        <div class="subtitle">Henderson, NV &nbsp;|&nbsp; (702) 567-8000 &nbsp;|&nbsp; 260 N Gibson Rd</div>
+      </div>
+    </div>
+    <table>
+      <tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Salesperson</th></tr>
+      <tr><td><strong>${bill.id}</strong></td><td>${String(bill.date||"").split("T")[0]}</td><td><strong>${bill.stock||"—"}</strong></td><td>${bill.sales||"—"}</td></tr>
+    </table>
+    <table>
+      <tr><th>Customer</th><th>Phone</th><th>Vehicle</th><th>License</th></tr>
+      <tr><td>${bill.customer||"—"}</td><td>${bill.phone||"—"}</td><td>${bill.vehicle||"—"}</td><td>${bill.license||"—"}</td></tr>
+    </table>
+    ${bill.dueDate ? `<p style="font-size:13px;margin-bottom:16px;"><strong>Customer Return Date:</strong> ${String(bill.dueDate).split("T")[0]}</p>` : ""}
+    <table>
+      <tr><th>#</th><th>Work Promised</th><th>Vendor</th><th>Status</th></tr>
+      ${vendors.map(([vendor, vs], i) => `<tr><td>${i+1}</td><td>${(vs.items||[]).join(", ")}</td><td>${vendor}</td><td style="text-transform:capitalize;">${vs.status||"Open"}</td></tr>`).join("")}
+    </table>
+    ${bill.notes ? `<p style="font-size:13px;margin-bottom:20px;"><strong>Notes:</strong> ${bill.notes}</p>` : ""}
+    <p style="font-size:11px;color:#888;margin-bottom:30px;">NOTE: The above promised work is the only work to be performed free of charge. All work must be done in our shop. You must make an advance appointment with the service department before the above work can be performed.</p>
+    <div style="display:flex;justify-content:space-between;">
+      <div><div class="sig-line">Signed Sales Mgr. X</div></div>
+      <div><div class="sig-line">Signed Customer X</div></div>
+    </div>
+    <div class="footer">DUE TO INSURANCE REGULATIONS — NO LOAN CARS AVAILABLE</div>
+    <br><button onclick="window.print()" style="padding:10px 20px;background:#c8102e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:14px;font-weight:700;">Print / Save as PDF</button>
+    </body></html>
+  `);
+  win.document.close();
+}
+
+async function saveNote(billId) {
+  const input = document.getElementById("note_" + billId);
+  if (!input) return;
+  const note = input.value.trim();
+  try {
+    await apiPost({ action:"updateNote", billId, note });
+    const bill = getBills().find(b => b.id === billId);
+    if (bill) bill.notes = note;
+    toast("Note saved.");
+  } catch(e) {
+    toast("Failed to save note: " + e.message);
+  }
 }
 
 function resendText(billId, vendor) {
