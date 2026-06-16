@@ -1174,8 +1174,8 @@ function generateBillId() {
 
 function renderStats() {
   const bills = getBills();
-  const open = bills.filter(b => getBillStatus(b)==="open").length;
-  const sched = bills.filter(b => getBillStatus(b)==="scheduled").length;
+  const open = bills.filter(b => Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
+  const sched = bills.filter(b => getBillStatus(b)==="scheduled" && !Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
   const done = bills.filter(b => getBillStatus(b)==="done").length;
   const el = document.getElementById("statsRow");
   if (!el) return;
