@@ -353,8 +353,8 @@ input::placeholder { color: var(--gray-400); }
 .filter-reminder { margin-left: auto; }
 
 /* TABLE */
-.tracker-wrap { background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-.tracker-table { width: 100%; border-collapse: collapse; }
+.tracker-wrap { background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px; overflow-x: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.tracker-table { width: 100%; min-width: 800px; border-collapse: collapse; }
 .tracker-table th {
   background: var(--navy);
   color: var(--gray-400);
@@ -1206,8 +1206,8 @@ function renderTracker() {
     const st = getBillStatus(bill);
     const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
     html += `<tr>
-      <td style="font-size:11px;font-weight:700;color:var(--red);">${bill.id||"—"}</td>
-      <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date||"—"}</td>
+      <td style="font-size:11px;font-weight:700;color:var(--red);white-space:nowrap;">${bill.id||"—"}</td>
+      <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date ? new Date(bill.date).toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"numeric"}) : "—"}</td>
       <td style="font-weight:700;color:var(--navy);">${bill.stock||"—"}</td>
       <td style="font-size:13px;">${bill.customer||"—"}</td>
       <td style="font-size:12px;color:var(--gray-600);">${bill.vehicle||"—"}</td>
