@@ -1172,6 +1172,90 @@ function generateBillId() {
   return "DB-" + dateStr + "-" + String(seq).padStart(3, '0');
 }
 
+function renderStats() {
+  const bills = getBills();
+  const open = bills.filter(b => getBillStatus(b)==="open").length;
+  const sched = bills.filter(b => getBillStatus(b)==="scheduled").length;
+  const done = bills.filter(b => getBillStatus(b)==="done").length;
+  const el = document.getElementById("statsRow");
+  if (!el) return;
+  el.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${bills.length}</div><div class="stat-label">Total Bills</div></div>
+    <div class="stat-card"><div class="stat-num warn">${open}</div><div class="stat-label">Open</div></div>
+    <div class="stat-card"><div class="stat-num sched">${sched}</div><div class="stat-label">Scheduled</div></div>
+    <div class="stat-card"><div class="stat-num green">${done}</div><div class="stat-label">Completed</div></div>`;
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+  el.classList.add("active");
+  renderTracker();
+}
+
+function renderTracker() {
+  renderStats();
+  const bills = getBills().filter(b => currentFilter==="all" || getBillStatus(b)===currentFilter);
+  const body = document.getElementById("trackerBody");
+  if (!bills.length) {
+    body.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No due bills found.</div></div>';
+    return;
+  }
+  let html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Salesperson</th><th>Status</th><th></th></tr></thead><tbody>';
+  bills.forEach(bill => {
+    const st = getBillStatus(bill);
+    const badge = st==="done" ? '<span class="badge badge-done">Completed</span>' : st==="scheduled" ? '<span class="badge badge-scheduled">Scheduled</span>' : '<span class="badge badge-open">Open</span>';
+    html += `<tr>
+      <td style="font-size:11px;font-weight:700;color:var(--red);">${bill.id||"—"}</td>
+      <td style="font-size:12px;color:var(--gray-400);white-space:nowrap;">${bill.date||"—"}</td>
+      <td style="font-weight:700;color:var(--navy);">${bill.stock||"—"}</td>
+      <td style="font-size:13px;">${bill.customer||"—"}</td>
+      <td style="font-size:12px;color:var(--gray-600);">${bill.vehicle||"—"}</td>
+      <td style="font-size:12px;color:var(--gray-600);">${bill.sales||"—"}</td>
+      <td>${badge}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="margin-right:5px;">Details</button>
+        <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')">Delete</button>
+      </td>
+    </tr>
+    <tr class="detail-tr" id="detail_${bill.id}" style="display:none;">
+      <td colspan="8">
+        <div class="detail-inner">
+          <div class="detail-title">Vendor Status — Update as work is completed</div>
+          ${Object.entries(bill.vendorStatuses||{}).map(([vendor, vs]) => `
+            <div class="item-status-row">
+              <div class="item-status-name">${vendor}</div>
+              <div class="item-status-items">${(vs.items||[]).join(", ")}</div>
+              <select class="item-status-select" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\'")}',this.value)">
+                <option value="open" ${vs.status==="open"?"selected":""}>Open</option>
+                <option value="scheduled" ${vs.status==="scheduled"?"selected":""}>Scheduled</option>
+                <option value="done" ${vs.status==="done"?"selected":""}>Completed</option>
+              </select>
+              ${vs.phone ? `<button class="btn-ghost" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\'")}')">Resend</button>` : '<span style="font-size:11px;color:var(--gray-400);">No number</span>'}
+            </div>`).join("")}
+        </div>
+      </td>
+    </tr>`;
+  });
+  html += "</tbody></table>";
+  body.innerHTML = html;
+}
+
+function toggleDetail(id) {
+  const row = document.getElementById("detail_" + id);
+  if (row) row.style.display = row.style.display === "none" ? "table-row" : "none";
+}
+
+function resendText(billId, vendor) {
+  const bill = getBills().find(b => b.id === billId);
+  if (!bill) return;
+  const vs = bill.vendorStatuses[vendor];
+  if (!vs || !vs.phone) { toast("No phone number saved for this vendor."); return; }
+  const msg = buildMsg(vendor, vs.items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date);
+  openNativeSMS(vs.phone, msg);
+  toast("Text opened for " + vendor + ".");
+}
+
 function getBillStatus(bill) {
   const s = Object.values(bill.vendorStatuses).map(x => x.status);
   if (s.every(x => x==="done")) return "done";
