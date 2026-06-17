@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const GATE_KEY    = 'kia_gate_ts';
   const GATE_EXPIRY = 12 * 60 * 60 * 1000; // 12 hours
   // To change password: get SHA-256 hash of your new password at sha256.online
-  // Current password: Towbin1
   const CORRECT_HASH = '8dc4cd568b81bb06592b5791049765e503cf43af74e5bb8c383124a1bf2cda9f';
 
   async function hashInput(str) {
