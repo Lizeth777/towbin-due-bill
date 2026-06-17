@@ -280,11 +280,6 @@ body {
   font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
   padding: 3px 8px; border-radius: 4px; display: inline-block;
 }
-.status-badge.overdue      { background: rgba(255,68,85,0.15); border: 1px solid rgba(255,68,85,0.3); color: #ff4455; }
-.status-badge.due-soon     { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b; }
-.status-badge.in-progress  { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b; }
-.status-badge.pending-s    { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.4); }
-.status-badge.complete     { background: rgba(34,200,136,0.12); border: 1px solid rgba(34,200,136,0.3); color: #22cc88; }
 
 .action-btn {
   width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
@@ -350,13 +345,6 @@ body {
 }
 .toggle.on::after { transform: translateX(18px); }
 
-.remind-pills { display: flex; gap: 4px; }
-.remind-pill {
-  font-size: 9px; padding: 4px 10px; border-radius: 8px; cursor: pointer;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.4); font-family: inherit; font-weight: 600; transition: all 0.15s;
-}
-.remind-pill.active { background: rgba(200,16,46,0.15); border-color: #C8102E; color: #fff; }
 .settings-btn {
   padding: 6px 14px; border-radius: 6px; font-size: 10px; font-weight: 600;
   cursor: pointer; font-family: inherit; text-transform: uppercase; letter-spacing: 1px; transition: all 0.15s;
@@ -405,3 +393,177 @@ input[type="range"]::-webkit-slider-thumb {
 /* 3-state status badges */
 .status-badge.notified     { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
 .status-badge.not-notified { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.5); }
+
+/* ═══════════════════════════════════════════════════
+   MOBILE RESPONSIVE — fills screen on phones/tablets
+   Desktop keeps the infotainment frame look
+   ═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Kill the centered frame layout — go full screen */
+  body {
+    display: block;
+    overflow: auto;
+    background: var(--screen-bg);
+  }
+
+  .dashboard-glow { display: none; }
+
+  /* Screen fills the whole viewport */
+  .screen {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* dynamic viewport height — accounts for mobile browser chrome */
+    border-radius: 0;
+    box-shadow: none;
+    position: fixed;
+    inset: 0;
+  }
+
+  /* Status bar — slightly taller for touch */
+  .status-bar {
+    height: 44px; min-height: 44px;
+    padding: 0 14px;
+  }
+  .kia-subtitle { display: none; } /* hide on small screens */
+  .clock { font-size: 14px; }
+
+  /* Soft key bar — taller touch targets */
+  .soft-key-bar {
+    height: 54px; min-height: 54px;
+    padding: 0 20px;
+    padding-bottom: env(safe-area-inset-bottom); /* iPhone notch */
+  }
+  .key-btn { padding: 12px; }
+
+  /* HOME — stack vertically on mobile */
+  .home-header { padding: 10px 16px 0; }
+
+  .home-body {
+    flex-direction: column;
+    padding: 12px 16px 16px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  /* Left widget — horizontal compact layout */
+  .left-widget {
+    width: 100%;
+    min-width: unset;
+    padding: 14px 16px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+  }
+
+  .kia-wordmark { font-size: 18px; }
+  .kia-portal { font-size: 8px; }
+
+  .widget-divider {
+    width: 100%; height: 1px;
+    margin: 10px 0;
+  }
+
+  /* Stats in a row */
+  .stat-block {
+    flex: 1;
+    margin-bottom: 0;
+    text-align: center;
+    min-width: 80px;
+  }
+  .stat-num { font-size: 32px; }
+  .stat-label { font-size: 8px; }
+
+  /* Date/sync on full width below stats */
+  .widget-date, .widget-sync {
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+    font-size: 10px;
+  }
+  .widget-sync { margin-top: 2px; font-size: 9px; }
+
+  /* Tile grid — 2x2 fills remaining space */
+  .tile-grid {
+    gap: 10px;
+    flex: 1;
+    min-height: 220px;
+  }
+
+  .app-tile {
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .tile-label { font-size: 12px; }
+  .tile-sub   { font-size: 9px; }
+  .tile-icon svg { width: 28px; height: 28px; }
+
+  /* VIEW HEADERS */
+  .view-header { height: 50px; min-height: 50px; padding: 0 14px; }
+  .vh-title { font-size: 11px; letter-spacing: 2px; }
+
+  /* FORMS */
+  .col-2 { grid-template-columns: 1fr; }
+  .col-3 { grid-template-columns: 1fr 1fr; }
+
+  /* Work buttons — 2 columns on mobile */
+  #work-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* TRACKER */
+  .stats-row { }
+  .st-count { font-size: 20px; }
+  .st-label { font-size: 8px; }
+  .stats-tile { padding: 8px 10px; }
+
+  .filter-pill { font-size: 8px; padding: 4px 10px; }
+
+  .bill-list { padding: 8px 12px; }
+
+  .bill-card { padding: 10px 12px; margin-bottom: 8px; }
+
+  /* Action buttons — bigger touch targets */
+  .action-btn { width: 32px; height: 32px; }
+
+  /* SUBMIT BUTTON */
+  .btn-submit { height: 48px; font-size: 12px; }
+
+  /* SCAN */
+  .drop-zone { height: 100px; }
+  .scan-btn { height: 48px; font-size: 12px; }
+
+  /* SETTINGS */
+  .settings-item { flex-wrap: wrap; gap: 8px; }
+
+  /* DETAIL OVERLAY */
+  .detail-body { padding: 14px 16px; }
+  .detail-table td { font-size: 12px; padding: 8px 10px; }
+
+  /* Make inputs bigger for mobile touch */
+  .field-input, .field-select, .field-textarea {
+    font-size: 16px; /* prevents iOS zoom on focus */
+    padding: 12px 14px;
+  }
+
+  /* Tracker search */
+  #tracker-search {
+    font-size: 16px !important;
+    padding: 12px 14px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   PWA — installed app safe areas
+   ═══════════════════════════════════════════════════ */
+@supports (padding: env(safe-area-inset-top)) {
+  .status-bar {
+    padding-top: env(safe-area-inset-top);
+    height: calc(38px + env(safe-area-inset-top));
+    min-height: calc(38px + env(safe-area-inset-top));
+  }
+  .soft-key-bar {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(44px + env(safe-area-inset-bottom));
+    min-height: calc(44px + env(safe-area-inset-bottom));
+  }
+}
