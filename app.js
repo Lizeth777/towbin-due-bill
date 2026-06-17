@@ -796,36 +796,46 @@ function updateClock() {
   if (el) el.textContent = new Date().toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
-// ---- DRAG & DROP ----
+// ---- INIT ----
 document.addEventListener("DOMContentLoaded", () => {
+  // Date default
+  const bd = document.getElementById("billDate");
+  if (bd) bd.value = new Date().toISOString().split("T")[0];
+
+  // Dropdowns
+  initYearDropdown();
+  initMakeDropdown();
+
+  // Form
+  buildItemsGrid();
+  buildVendorSettingsRows();
+  loadConfig();
+
+  // Clock
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // Preview listeners
+  ["stockNum","customerName","salesperson","billDate","licensePlate","dueDate","dealNotes"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updatePreview);
+  });
+
+  // Drag & drop
   const dz = document.getElementById("dropZone");
   if (dz) {
     dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dragover"); });
     dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
     dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("dragover"); if(e.dataTransfer.files[0]) processScanFile(e.dataTransfer.files[0]); });
   }
-  // Preview listeners
-  ["stockNum","customerName","salesperson","billDate","licensePlate","dueDate","dealNotes"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", updatePreview);
-  });
-});
 
-// ---- INIT ----
-document.addEventListener("DOMContentLoaded", () => {
-  const bd = document.getElementById("billDate");
-  if (bd) bd.value = new Date().toISOString().split("T")[0];
-  initYearDropdown();
-  initMakeDropdown();
-  buildItemsGrid();
-  buildVendorSettingsRows();
-  loadConfig();
-  updateClock();
-  setInterval(updateClock, 30000);
+  // Session expiry check
   setInterval(() => {
     const gate = document.getElementById("passwordGate");
     if (!isLoggedIn() && gate && gate.style.display === "none") { signOut(); toast("Session expired."); }
   }, 60000);
+
+  // Load data if already signed in
   if (isLoggedIn()) {
     fetchBills().then(() => { fetchVendors(); updateOpenCount(); renderTracker(); }).catch(e => console.error(e));
   }
