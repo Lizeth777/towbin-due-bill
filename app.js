@@ -1,842 +1,874 @@
-// TOWBIN KIA — DUE BILL TRACKER — app.js v1.1.7
+/* ============================================================
+   KIA DUE BILL TRACKER — app.js v1.1.8
+   Towbin Kia · Telluride UI + Full Send/Vendor/Note Functionality
+   ============================================================ */
 
-// ---- CONSTANTS ----
-const TK_KEY    = "tk_auth_ts";
-const TK_EXPIRY = 12 * 60 * 60 * 1000;
-const SCRIPT_URL = localStorage.getItem("google_script_url") || "https://script.google.com/macros/s/AKfycbyTq072YxvYWJq-omI0t7z43MaBfGZYF8VOkErnVTWFqI-CN_GgGMLmzdNc3BTYO1EP/exec";
+document.addEventListener('DOMContentLoaded', function () {
 
-const ITEMS = [
-  { id:"gps",       label:"GPS",           vendor:"Kia Service"    },
-  { id:"redalert",  label:"Red Alert",     vendor:"Kia Service"    },
-  { id:"polysteel", label:"Polysteel",     vendor:"Kia Service"    },
-  { id:"tint",      label:"XPEL Tint",     vendor:"Fam Solutions"  },
-  { id:"ppf",       label:"XPEL PPF",      vendor:"Fam Solutions"  },
-  { id:"ceramic",   label:"Ceramic Coat",  vendor:"Fam Solutions"  },
-  { id:"bodyshop",  label:"Body Work",     vendor:"Body Shop"      },
-  { id:"detail",    label:"Detail",        vendor:"Detail"         },
-  { id:"powder",    label:"Powder Wheels", vendor:"Powder Coating" },
-  { id:"other",     label:"Other",         vendor:"Other Vendor"   },
-];
-const VENDOR_KEYS = [...new Set(ITEMS.map(i => i.vendor))];
+  // ══════════════ PASSWORD GATE ══════════════
+  const GATE_KEY    = 'kia_gate_ts';
+  const GATE_EXPIRY = 12 * 60 * 60 * 1000; // 12 hours
+  // To change password: get SHA-256 hash of your new password at sha256.online
+  // Current password: Towbin1
+  const CORRECT_HASH = '8dc4cd568b81bb06592b5791049765e503cf43af74e5bb8c383124a1bf2cda9f';
 
-const MAKES_MODELS = {
-  'Acura':['CL','ILX','Integra','MDX','NSX','RDX','RLX','TL','TLX','TSX','ZDX'],
-  'Alfa Romeo':['4C','Giulia','Giulietta','MiTo','Stelvio','Tonale'],
-  'Audi':['A3','A4','A5','A6','A7','A8','e-tron','e-tron GT','Q3','Q4 e-tron','Q5','Q7','Q8','R8','RS3','RS5','RS6','RS7','S3','S4','S5','S6','S7','S8','SQ5','SQ7','TT'],
-  'BMW':['1 Series','2 Series','3 Series','4 Series','5 Series','6 Series','7 Series','8 Series','i3','i4','i5','i7','iX','M2','M3','M4','M5','M8','X1','X2','X3','X4','X5','X6','X7','XM','Z4'],
-  'Buick':['Cascada','Enclave','Encore','Encore GX','Envision','Envista','LaCrosse','Regal','Verano'],
-  'Cadillac':['ATS','CT4','CT5','CT6','CTS','Escalade','Escalade ESV','Lyriq','SRX','XTS','XT4','XT5','XT6'],
-  'Chevrolet':['Blazer','Bolt EUV','Bolt EV','Camaro','Colorado','Corvette','Cruze','Equinox','Express','Impala','Malibu','Silverado 1500','Silverado 2500HD','Silverado 3500HD','Sonic','Spark','Suburban','Tahoe','TrailBlazer','Traverse','Trax'],
-  'Chrysler':['300','Pacifica','Pacifica Hybrid','Voyager'],
-  'Dodge':['Challenger','Charger','Durango','Grand Caravan','Hornet','Journey'],
-  'Ford':['Bronco','Bronco Sport','EcoSport','Edge','Escape','Expedition','Explorer','F-150','F-150 Lightning','F-250 Super Duty','F-350 Super Duty','Maverick','Mustang','Mustang Mach-E','Ranger','Transit'],
-  'Genesis':['G70','G80','G90','GV60','GV70','GV80'],
-  'GMC':['Acadia','Canyon','Sierra 1500','Sierra 2500HD','Sierra 3500HD','Terrain','Yukon','Yukon XL'],
-  'Honda':['Accord','Accord Hybrid','CR-V','CR-V Hybrid','Fit','HR-V','Odyssey','Passport','Pilot','Ridgeline'],
-  'Hyundai':['Accent','Elantra','Elantra N','Ioniq 5','Ioniq 6','Kona','Palisade','Santa Cruz','Santa Fe','Sonata','Tucson','Tucson Hybrid','Venue'],
-  'Infiniti':['Q50','Q60','Q70','QX50','QX55','QX60','QX80'],
-  'Jaguar':['E-Pace','F-Pace','F-Type','I-Pace','XE','XF','XJ'],
-  'Jeep':['Cherokee','Compass','Gladiator','Grand Cherokee','Grand Cherokee 4xe','Grand Cherokee L','Renegade','Wrangler','Wrangler 4xe'],
-  'Kia':['Cadenza','Carnival','EV6','EV9','Forte','K4','K5','K900','Niro','Niro EV','Optima','Rio','Seltos','Soul','Sorento','Sorento Hybrid','Sportage','Sportage Hybrid','Stinger','Telluride'],
-  'Land Rover':['Defender','Discovery','Discovery Sport','Range Rover','Range Rover Evoque','Range Rover Sport','Range Rover Velar'],
-  'Lexus':['ES 250','ES 300h','ES 350','GX 460','GX 550','IS 300','IS 350','IS 500','LC 500','LS 500','LX 600','NX 250','NX 350','NX 350h','RX 350','RX 350h','RX 450h','RZ 450e','UX 200','UX 250h'],
-  'Lincoln':['Aviator','Continental','Corsair','Nautilus','Navigator','Navigator L'],
-  'Mazda':['CX-3','CX-30','CX-5','CX-50','CX-90','Mazda3','Mazda6','MX-5 Miata'],
-  'Mercedes-Benz':['A-Class','AMG GT','C-Class','CLA-Class','CLS-Class','E-Class','EQB','EQC','EQE','EQS','G-Class','GLA-Class','GLB-Class','GLC-Class','GLE-Class','GLS-Class','S-Class','SL-Class','Sprinter'],
-  'MINI':['Clubman','Convertible','Cooper','Countryman','Hardtop 2 Door','Hardtop 4 Door'],
-  'Mitsubishi':['Eclipse Cross','Outlander','Outlander PHEV','Outlander Sport'],
-  'Nissan':['Altima','Armada','Ariya','Frontier','GT-R','Kicks','Leaf','Maxima','Murano','Pathfinder','Rogue','Rogue Sport','Sentra','Titan','Versa','Z'],
-  'Porsche':['718 Boxster','718 Cayman','911','Cayenne','Macan','Panamera','Taycan'],
-  'Ram':['1500','1500 Classic','2500','3500','ProMaster','ProMaster City'],
-  'Rivian':['R1S','R1T','R2'],
-  'Subaru':['Ascent','BRZ','Crosstrek','Forester','Impreza','Legacy','Outback','Solterra','WRX'],
-  'Tesla':['Cybertruck','Model 3','Model S','Model X','Model Y'],
-  'Toyota':['4Runner','Camry','Camry Hybrid','Corolla','Corolla Cross','Corolla Hybrid','Crown','GR86','GR Corolla','Highlander','Highlander Hybrid','Land Cruiser','Prius','Prius Prime','RAV4','RAV4 Hybrid','RAV4 Prime','Sequoia','Sienna','Tacoma','Tundra','Venza'],
-  'Volkswagen':['Arteon','Atlas','Atlas Cross Sport','Golf GTI','Golf R','ID.4','ID.Buzz','Jetta','Passat','Taos','Tiguan'],
-  'Volvo':['C40 Recharge','EX30','EX90','S60','S90','V60','XC40','XC40 Recharge','XC60','XC90'],
-  'Other':['-- Type model below --'],
-};
-const ALL_MAKES = Object.keys(MAKES_MODELS).sort();
-
-// ---- STATE ----
-let _billsCache = null;
-let currentFilter = "all";
-
-// ---- AUTH ----
-function isLoggedIn() {
-  const ts = localStorage.getItem(TK_KEY);
-  if (!ts) return false;
-  return (Date.now() - parseInt(ts)) < TK_EXPIRY;
-}
-function setLoggedIn() { localStorage.setItem(TK_KEY, Date.now().toString()); }
-function signOut() {
-  localStorage.removeItem(TK_KEY);
-  document.getElementById("passwordGate").style.display = "flex";
-  document.getElementById("pwdInput").value = "";
-  document.getElementById("pwdError").style.display = "none";
-  setTimeout(() => { const el = document.getElementById("pwdInput"); if(el) el.focus(); }, 100);
-}
-async function checkPassword() {
-  const input = document.getElementById("pwdInput").value;
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  const hashed = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
-  if (hashed === "6d46d54ffa54a5eb9554b1a62c1cc2f2897c79f311296e5c56147bdee8d7e908") {
-    setLoggedIn();
-    document.getElementById("passwordGate").style.display = "none";
-    try { await Promise.all([fetchBills(), fetchVendors()]); updateOpenCount(); renderTracker(); } catch(e) { console.error(e); }
-  } else {
-    document.getElementById("pwdError").style.display = "block";
-    document.getElementById("pwdInput").value = "";
-    document.getElementById("pwdInput").focus();
+  async function hashInput(str) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
-}
-function togglePwd() {
-  const i = document.getElementById("pwdInput");
-  const e = document.getElementById("eyeIcon");
-  if (!i || !e) return;
-  if (i.type === "password") {
-    i.type = "text";
-    e.innerHTML = "<path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/>";
-  } else {
-    i.type = "password";
-    e.innerHTML = "<path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/>";
+
+  function isAuthed() {
+    const ts = localStorage.getItem(GATE_KEY);
+    return ts && (Date.now() - parseInt(ts)) < GATE_EXPIRY;
   }
-}
 
-// ---- API ----
-async function apiGet(action) {
-  const r = await fetch(SCRIPT_URL + "?action=" + action);
-  return r.json();
-}
-async function apiPost(payload) {
-  const r = await fetch(SCRIPT_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(payload) });
-  return r.json();
-}
-
-// ---- DATA ----
-async function fetchBills() {
-  const res = await apiGet("getBills");
-  _billsCache = res.bills || [];
-  return _billsCache;
-}
-function getBills() { return _billsCache || []; }
-async function fetchVendors() {
-  const res = await apiGet("getVendors");
-  const vendors = res.vendors || {};
-  Object.entries(vendors).forEach(([vendor, phone]) => {
-    const key = "vendor_" + vendor.replace(/\s+/g,"_");
-    const el = document.getElementById("vs_" + key);
-    if (el) el.value = phone;
-    localStorage.setItem(key, phone);
-  });
-}
-
-// ---- NAVIGATION ----
-function showTab(name) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".nav-btn").forEach(t => t.classList.remove("active"));
-  const page = document.getElementById("page-" + name);
-  if (page) page.classList.add("active");
-  document.querySelectorAll(".nav-btn").forEach(t => {
-    if ((t.getAttribute("onclick")||"").includes("'" + name + "'")) t.classList.add("active");
-  });
-  if (name === "tracker") { fetchBills().then(() => { renderTracker(); updateOpenCount(); }).catch(e => console.error(e)); }
-}
-
-// ---- VEHICLE DROPDOWNS ----
-function initYearDropdown() {
-  const sel = document.getElementById("vehicleYear");
-  if (!sel) return;
-  const cur = new Date().getFullYear();
-  for (let y = cur + 1; y >= 2000; y--) {
-    const opt = document.createElement("option");
-    opt.value = y; opt.textContent = y;
-    if (y === cur) opt.selected = true;
-    sel.appendChild(opt);
+  function signOut() {
+    localStorage.removeItem(GATE_KEY);
+    const gate = document.getElementById('password-gate');
+    const input = document.getElementById('gate-input');
+    if (gate) gate.style.display = 'flex';
+    if (input) { input.value = ''; setTimeout(()=>input.focus(), 100); }
   }
-}
-function initMakeDropdown() {
-  const sel = document.getElementById("vehicleMake");
-  if (!sel) return;
-  ALL_MAKES.forEach(make => {
-    const opt = document.createElement("option");
-    opt.value = make; opt.textContent = make;
-    sel.appendChild(opt);
-  });
-}
-function updateModelDropdown() {
-  const make = document.getElementById("vehicleMake") ? document.getElementById("vehicleMake").value : "";
-  const sel = document.getElementById("vehicleModel");
-  if (!sel) return;
-  sel.innerHTML = "<option value=''>Select Model</option>";
-  const otherWrap = document.getElementById("vehicleOtherWrap");
-  if (make === "Other") {
-    sel.style.display = "none";
-    if (otherWrap) otherWrap.style.display = "block";
-  } else {
-    sel.style.display = "block";
-    if (otherWrap) otherWrap.style.display = "none";
-    if (make && MAKES_MODELS[make]) {
-      MAKES_MODELS[make].forEach(model => {
-        const opt = document.createElement("option");
-        opt.value = model; opt.textContent = model;
-        sel.appendChild(opt);
-      });
+  window.signOut = signOut;
+
+  window.checkGatePassword = async function() {
+    const input = document.getElementById('gate-input');
+    const errEl = document.getElementById('gate-error');
+    const pwd   = input ? input.value : '';
+    let hash;
+    try {
+      hash = await hashInput(pwd);
+    } catch(e) {
+      // crypto.subtle unavailable (file:// protocol) — hash manually
+      hash = '';
     }
-  }
-  buildVehicleDesc();
-}
-function buildVehicleDesc() {
-  const year  = document.getElementById("vehicleYear")  ? document.getElementById("vehicleYear").value  : "";
-  const make  = document.getElementById("vehicleMake")  ? document.getElementById("vehicleMake").value  : "";
-  const model = document.getElementById("vehicleModel") ? document.getElementById("vehicleModel").value : "";
-  const otherInput = document.getElementById("vehicleOther");
-  const desc = document.getElementById("vehicleDesc");
-  if (!desc) return;
-  if (make === "Other") {
-    desc.value = otherInput ? otherInput.value.trim() : "";
-  } else {
-    desc.value = [year, make, model].filter(Boolean).join(" ");
-  }
-  updatePreview();
-}
-
-// ---- FORM ----
-function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
-
-function buildItemsGrid() {
-  const grid = document.getElementById("itemsGrid");
-  if (!grid) return;
-  ITEMS.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "item-chip";
-    div.id = "chip_" + item.id;
-    div.innerHTML = `<input type="checkbox" id="chk_${item.id}"><div class="chip-check"><span class="chip-checkmark">✓</span></div><div class="chip-label">${item.label}</div><div class="chip-vendor">${item.vendor}</div>`;
-    div.onclick = () => {
-      const chk = document.getElementById("chk_" + item.id);
-      chk.checked = !chk.checked;
-      div.classList.toggle("checked", chk.checked);
-      updatePreview();
-    };
-    grid.appendChild(div);
-  });
-}
-
-function getCheckedByVendor() {
-  const map = {};
-  ITEMS.forEach(item => {
-    const chk = document.getElementById("chk_" + item.id);
-    if (chk && chk.checked) {
-      if (!map[item.vendor]) map[item.vendor] = [];
-      map[item.vendor].push(item.label);
+    if (hash === CORRECT_HASH) {
+      localStorage.setItem(GATE_KEY, Date.now().toString());
+      const gate = document.getElementById('password-gate');
+      if (gate) gate.style.display = 'none';
+      if (errEl) errEl.style.display = 'none';
+    } else {
+      if (errEl) errEl.style.display = 'block';
+      if (input) { input.value = ''; input.focus(); }
     }
-  });
-  return map;
-}
+  };
 
-function buildMsg(vendor, items, stock, customer, vehicle, sales, date) {
-  return "DUE BILL ALERT — Towbin Kia\nStock: " + stock + (vehicle ? " | " + vehicle : "") + "\nCustomer: " + customer + "\nWork Needed: " + items.join(", ") + "\nSalesperson: " + (sales||"") + (date ? "\nDate: " + date : "") + "\nPlease schedule ASAP. Call the store to coordinate.";
-}
+  window.toggleGatePwd = function() {
+    const input = document.getElementById('gate-input');
+    const eyeEl = document.getElementById('gate-eye');
+    if (!input || !eyeEl) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      eyeEl.innerHTML = "<path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'/><line x1='1' y1='1' x2='23' y2='23'/>";
+    } else {
+      input.type = 'password';
+      eyeEl.innerHTML = "<path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/>";
+    }
+  };
 
-function updatePreview() {
-  const map = getCheckedByVendor();
-  const box = document.getElementById("previewBox");
-  if (!box) return;
-  if (!Object.keys(map).length) { box.textContent = "Select work items above to preview the vendor text messages."; return; }
-  const stock = v("stockNum") || "N/A", customer = v("customerName") || "N/A";
-  const vehicle = v("vehicleDesc"), sales = v("salesperson"), date = v("billDate");
-  let txt = "";
-  Object.entries(map).forEach(([vendor, items]) => {
-    const num = localStorage.getItem("vendor_" + vendor.replace(/\s+/g,"_")) || "(no number saved)";
-    txt += "TO: " + vendor + "  (" + num + ")\n" + buildMsg(vendor, items, stock, customer, vehicle, sales, date) + "\n\n" + "─".repeat(40) + "\n\n";
-  });
-  box.textContent = txt.trim();
-}
-
-function addLog(msg, type) {
-  const log = document.getElementById("sendLog");
-  if (!log) return;
-  const div = document.createElement("div");
-  div.className = "log-entry log-" + type;
-  div.textContent = msg;
-  log.prepend(div);
-}
-
-function resetForm() {
-  ITEMS.forEach(item => {
-    const chk = document.getElementById("chk_" + item.id);
-    const chip = document.getElementById("chip_" + item.id);
-    if (chk) chk.checked = false;
-    if (chip) chip.classList.remove("checked");
-  });
-  ["stockNum","customerName","salesperson","licensePlate","dueDate","dealNotes"].forEach(id => { const el = document.getElementById(id); if(el) el.value = ""; });
-  const yr = document.getElementById("vehicleYear"); if(yr) yr.value = new Date().getFullYear();
-  const mk = document.getElementById("vehicleMake"); if(mk) mk.value = "";
-  const mdl = document.getElementById("vehicleModel"); if(mdl) { mdl.innerHTML = "<option value=''>Select Model</option>"; mdl.style.display = "block"; }
-  const desc = document.getElementById("vehicleDesc"); if(desc) desc.value = "";
-  const pb = document.getElementById("previewBox"); if(pb) pb.textContent = "Select work items above to preview the vendor text messages.";
-  const log = document.getElementById("sendLog"); if(log) log.innerHTML = "";
-}
-
-// ---- BILL ID ----
-function generateBillId() {
-  const now = new Date();
-  const mm = String(now.getMonth()+1).padStart(2,"0"), dd = String(now.getDate()).padStart(2,"0"), yy = String(now.getFullYear()).slice(-2);
-  const dateStr = mm + dd + yy;
-  const seq = parseInt(localStorage.getItem("billSeq_"+dateStr)||"0") + 1;
-  localStorage.setItem("billSeq_"+dateStr, seq);
-  return "DB-" + dateStr + "-" + String(seq).padStart(3,"0");
-}
-
-function openNativeSMS(to, body) {
-  const encoded = encodeURIComponent(body);
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  window.location.href = "sms:" + to + (isIOS ? "&" : "?") + "body=" + encoded;
-}
-
-function buildBill(map, stock, customer, vehicle, sales, date, license, dueDate, notes) {
-  const billId = generateBillId();
-  const vendorStatuses = {};
-  Object.entries(map).forEach(([vendor, items]) => {
-    vendorStatuses[vendor] = { items, status:"open", phone: localStorage.getItem("vendor_"+vendor.replace(/\s+/g,"_"))||"", sentAt: new Date().toISOString() };
-  });
-  return { id:billId, date, stock, customer, vehicle, license, sales, dueDate, notes, vendorStatuses, createdAt: new Date().toISOString() };
-}
-
-async function saveBillAndNote(bill) {
-  try {
-    const res = await apiPost({ action:"saveBill", bill });
-    if (res && res.success) {
-      _billsCache = [bill, ...getBills()];
-      updateOpenCount();
-      addLog("✓ Saved to Google Sheets", "success");
-      const ts = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
-      const note = ts + " — Texted vendor to set up appt.";
-      await apiPost({ action:"updateNote", billId:bill.id, note });
-      if (_billsCache[0]) _billsCache[0].notes = note;
-    } else { addLog("✗ Sheet error: " + JSON.stringify(res), "error"); }
-  } catch(e) { addLog("✗ Save failed: " + e.message, "error"); }
-}
-
-// ---- SEND ALL (SMS) ----
-async function sendAll() {
-  const map = getCheckedByVendor();
-  if (!Object.keys(map).length) { alert("Select at least one work item."); return; }
-  const stock = v("stockNum"), customer = v("customerName");
-  if (!stock || !customer) { alert("Stock # and Customer Name required."); return; }
-  const bill = buildBill(map, stock, customer, v("vehicleDesc"), v("salesperson"), v("billDate"), v("licensePlate"), v("dueDate"), v("dealNotes"));
-  document.getElementById("sendLog").innerHTML = "";
-  await saveBillAndNote(bill);
-  const vendors = Object.entries(map); let idx = 0;
-  function next() {
-    if (idx >= vendors.length) { toast("All texts opened."); resetForm(); return; }
-    const [vendor, items] = vendors[idx];
-    const to = bill.vendorStatuses[vendor].phone;
-    if (!to) { addLog(vendor + ": No number — skipped.", "info"); idx++; setTimeout(next, 300); return; }
-    openNativeSMS(to, buildMsg(vendor, items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date));
-    addLog("✓ Text opened for " + vendor, "success");
-    idx++;
-    if (idx < vendors.length) setTimeout(next, 1500); else setTimeout(() => { toast("All texts opened."); resetForm(); }, 500);
+  // Show or hide gate on load
+  const gate = document.getElementById('password-gate');
+  if (isAuthed()) {
+    if (gate) gate.style.display = 'none';
+  } else {
+    if (gate) gate.style.display = 'flex';
+    setTimeout(()=>{ const i=document.getElementById('gate-input'); if(i)i.focus(); },100);
   }
-  next();
-}
 
-// ---- WHATSAPP ALL ----
-async function whatsappAll() {
-  const map = getCheckedByVendor();
-  if (!Object.keys(map).length) { alert("Select at least one work item."); return; }
-  const stock = v("stockNum"), customer = v("customerName");
-  if (!stock || !customer) { alert("Stock # and Customer Name required."); return; }
-  const bill = buildBill(map, stock, customer, v("vehicleDesc"), v("salesperson"), v("billDate"), v("licensePlate"), v("dueDate"), v("dealNotes"));
-  document.getElementById("sendLog").innerHTML = "";
-  await saveBillAndNote(bill);
-  const vendors = Object.entries(map); let idx = 0;
-  function next() {
-    if (idx >= vendors.length) { toast("WhatsApp opened for all vendors."); resetForm(); return; }
-    const [vendor, items] = vendors[idx];
-    const to = bill.vendorStatuses[vendor].phone;
-    if (!to) { addLog(vendor + ": No number — skipped.", "info"); idx++; setTimeout(next, 300); return; }
-    const phone = to.replace(/\D/g,"");
-    window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(buildMsg(vendor, items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date) + "\n\n📎 Please also attach the due bill photo."), "_blank");
-    addLog("✓ WhatsApp opened for " + vendor, "success");
-    idx++;
-    if (idx < vendors.length) setTimeout(next, 1500); else setTimeout(() => { toast("WhatsApp opened."); resetForm(); }, 500);
+  // Session expiry check every minute
+  setInterval(()=>{
+    if (!isAuthed()) {
+      const g=document.getElementById('password-gate');
+      if (g) g.style.display='flex';
+      const i=document.getElementById('gate-input'); if(i){i.value='';i.focus();}
+    }
+  }, 60000);
+  const VENDOR_MAP = {
+    'GPS':          { key: 'kia_service',    label: 'Kia Service' },
+    'Red Alert':    { key: 'kia_service',    label: 'Kia Service' },
+    'Polysteel':    { key: 'kia_service',    label: 'Kia Service' },
+    'XPEL Tint':    { key: 'fam_solutions',  label: 'Fam Solutions' },
+    'XPEL PPF':     { key: 'fam_solutions',  label: 'Fam Solutions' },
+    'Ceramic Coat': { key: 'fam_solutions',  label: 'Fam Solutions' },
+    'Body Work':    { key: 'body_shop',      label: 'Body Shop' },
+    'Detail':       { key: 'detail',         label: 'Detail' },
+    'Powder Wheels':{ key: 'powder_coating', label: 'Powder Coating' },
+    'Other':        { key: 'other_vendor',   label: 'Other Vendor' }
+  };
+
+  const VENDOR_KEYS = [
+    { key: 'kia_service',    label: 'Kia Service' },
+    { key: 'fam_solutions',  label: 'Fam Solutions' },
+    { key: 'body_shop',      label: 'Body Shop' },
+    { key: 'detail',         label: 'Detail' },
+    { key: 'powder_coating', label: 'Powder Coating' },
+    { key: 'other_vendor',   label: 'Other Vendor' }
+  ];
+
+  const LS_KEY     = 'kia-duebills-v4';
+  const INIT_KEY   = 'kia-init-v4';
+  const GSHEET_KEY = 'kia-gsheet-url';
+
+  let sheetScriptUrl = localStorage.getItem(GSHEET_KEY) || '';
+  let syncState      = 'local';
+  let soundEnabled   = true;
+  let currentFilter  = 'all';
+  let _scanFilling   = false;
+
+  // UTILITIES
+  function beep(freq=600, dur=0.08, type='sine') {
+    if (!soundEnabled) return;
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=freq; o.type=type;
+      g.gain.setValueAtTime(0.12,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+      o.start(); o.stop(ctx.currentTime+dur);
+    } catch(e){}
   }
-  next();
-}
 
-// ---- COPY & SAVE ----
-async function copyAndSave() {
-  try {
-    const map = getCheckedByVendor();
-    if (!Object.keys(map).length) { alert("Select at least one work item."); return; }
-    const stock = v("stockNum"), customer = v("customerName");
-    if (!stock || !customer) { alert("Stock # and Customer Name required."); return; }
-    const bill = buildBill(map, stock, customer, v("vehicleDesc"), v("salesperson"), v("billDate"), v("licensePlate"), v("dueDate"), v("dealNotes"));
-    document.getElementById("sendLog").innerHTML = "";
-    await saveBillAndNote(bill);
-    let all = "";
-    Object.entries(map).forEach(([vendor, items]) => {
-      const to = bill.vendorStatuses[vendor].phone;
-      all += "TO: " + vendor + (to ? " (" + to + ")" : "") + "\n" + buildMsg(vendor, items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date) + "\n\n" + "─".repeat(40) + "\n\n";
+  function todayStr() {
+    const d=new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function nowTs() {
+    const d=new Date();
+    return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(-2)+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function fmtDate(ds) {
+    if (!ds) return '';
+    const d=new Date(ds+'T00:00:00');
+    const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return m[d.getMonth()]+' '+d.getDate();
+  }
+
+  function getBills()       { try { return JSON.parse(localStorage.getItem(LS_KEY))||[]; } catch(e){ return []; } }
+  function saveBills(bills) { localStorage.setItem(LS_KEY,JSON.stringify(bills)); }
+  function getVendorPhone(k){ return localStorage.getItem('vendor_phone_'+k)||''; }
+  function saveVendorPhone(k,p){ localStorage.setItem('vendor_phone_'+k,p.trim()); }
+
+  function computeStatus(bill) {
+    if (bill.completedAt) return 'complete';
+    if (bill.notified) return 'notified';
+    return 'not-notified';
+  }
+
+  // VENDOR MESSAGE BUILDER
+  function buildVendorGroups(serviceNames) {
+    const groups={};
+    serviceNames.forEach(name=>{
+      const info=VENDOR_MAP[name];
+      if (!info) return;
+      if (!groups[info.key]) groups[info.key]={label:info.label,key:info.key,items:[]};
+      groups[info.key].items.push(name);
     });
-    try { await navigator.clipboard.writeText(all.trim()); }
-    catch(e) { const ta = document.createElement("textarea"); ta.value = all.trim(); ta.style.cssText = "position:fixed;opacity:0;"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); }
-    Object.keys(map).forEach(vendor => addLog("✓ Copied for " + vendor, "success"));
-    toast("Messages copied — paste into your text app.");
-    resetForm();
-  } catch(e) { alert("Error: " + e.message); }
-}
-
-// ---- DAILY REMINDERS ----
-async function sendDailyReminders() {
-  const open = getBills().filter(b => getBillStatus(b) !== "done");
-  if (!open.length) { toast("No open due bills."); return; }
-  let count = 0;
-  for (const bill of open) {
-    for (const [vendor, vs] of Object.entries(bill.vendorStatuses)) {
-      if (vs.status === "done" || !vs.phone) continue;
-      openNativeSMS(vs.phone, "REMINDER — Towbin Kia\nStock: " + bill.stock + (bill.vehicle ? " | " + bill.vehicle : "") + "\nCustomer: " + bill.customer + "\nWork: " + (vs.items||[]).join(", ") + "\nStatus: " + (vs.status||"open").toUpperCase() + "\nPlease confirm your schedule.");
-      count++;
-      await new Promise(r => setTimeout(r, 1500));
-    }
+    return groups;
   }
-  toast(count + " reminder(s) opened.");
-}
 
-// ---- TRACKER ----
-function getBillStatus(bill) {
-  const s = Object.values(bill.vendorStatuses||{}).map(x => x.status);
-  if (s.length === 0) return "open";
-  if (s.every(x => x==="done")) return "done";
-  if (s.some(x => x==="scheduled") && !s.some(x => x==="open")) return "scheduled";
-  return "open";
-}
+  function buildMessage(vendorLabel, items, bill) {
+    return 'DUE BILL — Towbin Kia\n'+
+      'Stock: '+(bill.stockNumber||'N/A')+(bill.vehicleDescription?' | '+bill.vehicleDescription:'')+'\n'+
+      'Customer: '+(bill.customerName||'N/A')+(bill.customerPhone?' | '+bill.customerPhone:'')+'\n'+
+      'Work Needed: '+items.join(', ')+'\n'+
+      'Salesperson: '+(bill.salesperson||'—')+'\n'+
+      'Please schedule ASAP. Call us to coordinate.';
+  }
 
-function updateOpenCount() {
-  const open = getBills().filter(b => Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
-  const el = document.getElementById("openCount");
-  if (el) { el.style.display = open > 0 ? "inline" : "none"; el.textContent = open; }
-}
+  function openSMS(phone, body) {
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    window.location.href='sms:'+phone+(isIOS?'&':'?')+'body='+encodeURIComponent(body);
+  }
 
-function renderStats() {
-  const bills = getBills();
-  const open  = bills.filter(b => Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
-  const sched = bills.filter(b => getBillStatus(b)==="scheduled").length;
-  const done  = bills.filter(b => getBillStatus(b)==="done").length;
-  const el = document.getElementById("statsRow");
-  if (!el) return;
-  el.innerHTML = `
-    <div class="stat-card"><div class="stat-num">${bills.length}</div><div class="stat-lbl">Total Bills</div></div>
-    <div class="stat-card"><div class="stat-num warn">${open}</div><div class="stat-lbl">Open</div></div>
-    <div class="stat-card"><div class="stat-num sched">${sched}</div><div class="stat-lbl">Scheduled</div></div>
-    <div class="stat-card"><div class="stat-num green">${done}</div><div class="stat-lbl">Completed</div></div>`;
-}
+  function openWhatsApp(phone, body) {
+    window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(body),'_blank');
+  }
 
-function setFilter(f, el) {
-  currentFilter = f;
-  document.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
-  el.classList.add("active");
-  renderTracker();
-}
+  function addNoteToBill(billId, text) {
+    const bills=getBills();
+    const bill=bills.find(b=>b.id===billId);
+    if (!bill) return;
+    const line=nowTs()+' — '+text;
+    bill.notes=bill.notes?bill.notes+'\n'+line:line;
+    saveBills(bills);
+    pushToSheets('update',bill);
+  }
 
-function getDaysRemaining(dueDate) {
-  if (!dueDate || !String(dueDate).trim() || String(dueDate)==="0") return null;
-  const d = Math.ceil((new Date(String(dueDate).split("T")[0]) - new Date().setHours(0,0,0,0)) / 86400000);
-  return isNaN(d) ? null : d;
-}
+  // GOOGLE SHEETS SYNC
+  async function sheetGet(params) {
+    if (!sheetScriptUrl) return null;
+    const qs=Object.entries(params).map(([k,v])=>encodeURIComponent(k)+'='+encodeURIComponent(typeof v==='object'?JSON.stringify(v):String(v))).join('&');
+    try {
+      const res=await fetch(sheetScriptUrl+'?'+qs,{redirect:'follow'});
+      return JSON.parse(await res.text());
+    } catch(e){ return null; }
+  }
 
-function formatNotes(notes) {
-  if (!notes) return '<em style="color:#9aa3b0;font-size:12px;">No notes yet.</em>';
-  return notes.split("\n").map(line => `<div style="padding:4px 0;font-size:12px;color:#5a6474;border-bottom:1px solid #eef0f3;">${line}</div>`).join("");
-}
+  async function pullFromSheets() {
+    if (!sheetScriptUrl){ updateSyncDot('local'); return; }
+    updateSyncDot('syncing');
+    const r=await sheetGet({action:'getAll'});
+    if (r&&r.success&&Array.isArray(r.bills)){
+      localStorage.setItem(LS_KEY,JSON.stringify(r.bills));
+      updateSyncDot('live');
+      updateHomeStats();
+      if (document.getElementById('view-tracker').classList.contains('active-view')) renderTracker();
+    } else { updateSyncDot('error'); }
+  }
 
-function renderTracker() {
-  renderStats();
-  const search = (document.getElementById("trackerSearch")||{value:""}).value.toLowerCase();
-  let bills = getBills().filter(b => {
-    if (currentFilter==="done") return getBillStatus(b)==="done";
-    if (currentFilter==="scheduled") return getBillStatus(b)==="scheduled";
-    if (currentFilter==="open") return Object.values(b.vendorStatuses||{}).some(v => v.status==="open");
-    return true;
-  });
-  if (search) bills = bills.filter(b =>
-    (b.id||"").toLowerCase().includes(search) ||
-    (b.stock||"").toLowerCase().includes(search) ||
-    (b.customer||"").toLowerCase().includes(search) ||
-    (b.vehicle||"").toLowerCase().includes(search)
-  );
-  const body = document.getElementById("trackerBody");
-  if (!body) return;
-  if (!bills.length) { body.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No due bills found.</div></div>'; return; }
-
-  const isMobile = window.innerWidth <= 700;
-  let html = "";
-
-  if (isMobile) {
-    bills.forEach(bill => {
-      const st = getBillStatus(bill);
-      const badge = st==="done"?'<span class="badge badge-done">Completed</span>':st==="scheduled"?'<span class="badge badge-scheduled">Scheduled</span>':'<span class="badge badge-open">Open</span>';
-      const days = getDaysRemaining(bill.dueDate);
-      let daysHtml="", border="";
-      if (days!==null && st!=="done") {
-        if(days<0){daysHtml=`<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`;border="border-left:4px solid #c00;";}
-        else if(days===0){daysHtml=`<span class="days-remaining overdue">DUE TODAY</span>`;border="border-left:4px solid #c00;";}
-        else if(days<=3){daysHtml=`<span class="days-remaining due-soon">${days}d left</span>`;border="border-left:4px solid #a07000;";}
-        else{daysHtml=`<span class="days-remaining ok">${days}d left</span>`;}
+  function pushToSheets(action, payload) {
+    if (!sheetScriptUrl) return;
+    const params={action};
+    if (action==='delete') params.id=payload; else params.data=payload;
+    sheetGet(params).then(result=>{
+      if(result&&result.success===false){
+        showPushToast('⚠ Sheet sync failed — data saved locally');
       }
-      html += `<div style="background:#fff;border:1px solid #dde1e7;border-radius:10px;padding:14px 16px;margin-bottom:10px;${border}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-          <div><div style="font-size:10px;font-weight:700;color:#ea0029;">${bill.id||"—"}</div><div style="font-size:22px;font-weight:700;color:#05141f;">Stock #${bill.stock||"—"}</div></div>
-          <div style="text-align:right;">${badge}${daysHtml?`<div style="margin-top:4px;">${daysHtml}</div>`:""}</div>
+    }).catch(()=>{
+      showPushToast('⚠ Sheet sync failed — data saved locally');
+    });
+  }
+
+  function showPushToast(msg) {
+    // Don't show on every keystroke — only on real failures
+    const existing = document.getElementById('push-toast');
+    if (existing) return; // already showing
+    const t = document.createElement('div');
+    t.id = 'push-toast';
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(245,158,11,0.95);color:#000;padding:8px 18px;border-radius:20px;font-size:11px;font-weight:700;z-index:99999;pointer-events:none;white-space:nowrap;';
+    document.body.appendChild(t);
+    setTimeout(()=>{ if(t.parentNode)t.parentNode.removeChild(t); }, 4000);
+  }
+
+  function updateSyncDot(state) {
+    syncState=state;
+    const dot=document.getElementById('sync-status-dot');
+    const lbl=document.getElementById('sync-status-label');
+    const ws=document.getElementById('widget-sync');
+    const map={live:['#10b981','LIVE','Last sync: just now'],syncing:['#f59e0b','SYNC','Syncing...'],error:['#ff4455','ERR','Sync error — check Settings'],local:['rgba(255,255,255,0.18)','LOCAL','Offline — data saved locally']};
+    const [color,label,wsText]=map[state]||map.local;
+    if (dot){ dot.style.background=color; dot.style.boxShadow=state==='live'?'0 0 6px #10b981':'none'; }
+    if (lbl) lbl.textContent=label;
+    if (ws)  ws.textContent=wsText;
+  }
+
+  function saveSheetUrl(url) {
+    sheetScriptUrl=(url||'').trim();
+    if (sheetScriptUrl){ localStorage.setItem(GSHEET_KEY,sheetScriptUrl); pullFromSheets(); }
+    else { localStorage.removeItem(GSHEET_KEY); updateSyncDot('local'); }
+  }
+
+  // CLOCK
+  function updateClock() {
+    const now=new Date(), el=document.getElementById('clock');
+    if (el) el.textContent=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  }
+  setInterval(updateClock,1000); updateClock();
+
+  function updateWidgetDate() {
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const now=new Date(), el=document.getElementById('widget-date');
+    if (el) el.textContent=days[now.getDay()]+', '+months[now.getMonth()]+' '+now.getDate();
+  }
+  updateWidgetDate();
+
+  // SEED DATA
+  function seedData() {
+    if (localStorage.getItem(INIT_KEY)) return;
+    saveBills([
+      { id:'b1',customerName:'Griselda Puentes Zavaleta',stockNumber:'T6189',vehicleDescription:'2026 Kia Telluride SX',licensePlate:'',vin:'',saleDate:'2026-05-25',salesperson:'Aaliyah Alvarado',salesManager:'',customerPhone:'',notified:false,services:[{id:'s1',name:'GPS',notes:'',status:'pending',completedAt:null},{id:'s2',name:'Red Alert',notes:'',status:'pending',completedAt:null},{id:'s3',name:'Polysteel',notes:'',status:'pending',completedAt:null},{id:'s4',name:'XPEL Tint',notes:'',status:'pending',completedAt:null}],priority:'high',notes:'',createdAt:'2026-05-25T10:00:00Z',completedAt:null },
+      { id:'b2',customerName:'Marcus Thompson',stockNumber:'T6201',vehicleDescription:'2026 Kia Sportage LX',licensePlate:'',vin:'',saleDate:'2026-06-10',salesperson:'James Rivera',salesManager:'',customerPhone:'',notified:false,services:[{id:'s6',name:'Ceramic Coat',notes:'',status:'pending',completedAt:null},{id:'s7',name:'XPEL PPF',notes:'',status:'in-progress',completedAt:null}],priority:'medium',notes:'',createdAt:'2026-06-10T14:00:00Z',completedAt:null }
+    ]);
+    localStorage.setItem(INIT_KEY,'1');
+  }
+  seedData();
+
+  // VIEW SYSTEM
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v=>{ v.classList.remove('active-view'); v.style.display='none'; });
+    const el=document.getElementById('view-'+name);
+    if (el){ el.style.display='flex'; el.classList.add('active-view'); }
+    const lbl=document.getElementById('current-view-label');
+    if (lbl) lbl.textContent=name.replace(/-/g,' ').toUpperCase();
+    beep(700,0.07);
+    if (name==='home')     updateHomeStats();
+    if (name==='tracker')  { renderTracker(); pullFromSheets(); }
+    if (name==='new-bill') initNewBillForm();
+    if (name==='settings') renderVendorSettings();
+    const det=document.getElementById('detail-overlay');
+    if (det) det.classList.remove('show');
+  }
+
+  // HOME STATS
+  function updateHomeStats() {
+    const bills=getBills(), today=todayStr();
+    let open=0,notified=0,doneToday=0;
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='complete')open++; if(s==='notified')notified++; if(b.completedAt&&b.completedAt.startsWith(today))doneToday++; });
+    const soEl=document.getElementById('stat-open'),srEl=document.getElementById('stat-overdue'),stEl=document.getElementById('stat-today'),hcEl=document.getElementById('home-chips');
+    if(soEl)soEl.textContent=open; if(srEl)srEl.textContent=notified; if(stEl)stEl.textContent=doneToday;
+    if(hcEl)hcEl.innerHTML=`<span class="home-chip white">${open} OPEN</span>`;
+  }
+  updateHomeStats();
+
+  // NAVIGATION
+  document.getElementById('tile-new-bill').addEventListener('click',()=>showView('new-bill'));
+  document.getElementById('tile-tracker').addEventListener('click', ()=>showView('tracker'));
+  document.getElementById('tile-scan').addEventListener('click',    ()=>showView('scan'));
+  document.getElementById('tile-settings').addEventListener('click',()=>showView('settings'));
+  document.getElementById('close-new-bill').addEventListener('click',()=>showView('home'));
+  document.getElementById('close-tracker').addEventListener('click', ()=>showView('home'));
+  document.getElementById('close-scan').addEventListener('click',    ()=>showView('home'));
+  document.getElementById('close-settings').addEventListener('click',()=>showView('home'));
+  document.getElementById('close-detail').addEventListener('click',()=>document.getElementById('detail-overlay').classList.remove('show'));
+  document.getElementById('key-back').addEventListener('click',()=>showView('home'));
+  document.getElementById('key-home').addEventListener('click',()=>showView('home'));
+
+  // NEW BILL FORM
+  function initNewBillForm() {
+    if (_scanFilling){ _scanFilling=false; return; }
+    window._lastScannedImage = null; // clear photo when starting fresh
+    const dateEl=document.getElementById('nb-date'); if(dateEl)dateEl.value=todayStr();
+    ['nb-stock','nb-customer','nb-license','nb-model','nb-salesperson','nb-customer-phone','nb-notes'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=''; });
+    const yearEl=document.getElementById('nb-year'); if(yearEl)yearEl.value=new Date().getFullYear();
+    const makeEl=document.getElementById('nb-make'); if(makeEl)makeEl.selectedIndex=0;
+    document.querySelectorAll('#work-grid .work-btn').forEach(btn=>btn.classList.remove('work-selected'));
+    const flash=document.getElementById('scan-success-flash'); if(flash)flash.classList.remove('show');
+    updateMessagePreview();
+  }
+
+  document.getElementById('work-grid').addEventListener('click',function(e){
+    const btn=e.target.closest('.work-btn'); if(!btn)return;
+    btn.classList.toggle('work-selected'); beep(700,0.05); updateMessagePreview();
+  });
+
+  function getSelectedServices() {
+    const svcs=[];
+    document.querySelectorAll('#work-grid .work-btn.work-selected').forEach(btn=>{
+      const lbl=btn.querySelector('.work-label'); if(lbl)svcs.push(lbl.textContent.trim());
+    });
+    return svcs;
+  }
+
+  function buildVehicleDesc() {
+    const year=document.getElementById('nb-year')?document.getElementById('nb-year').value.trim():'';
+    const make=document.getElementById('nb-make')?document.getElementById('nb-make').value:'';
+    const model=document.getElementById('nb-model')?document.getElementById('nb-model').value.trim():'';
+    return [year,make,model].filter(Boolean).join(' ');
+  }
+
+  function updateMessagePreview() {
+    const previewEl=document.getElementById('msg-preview'); if(!previewEl)return;
+    const svcs=getSelectedServices();
+    if (!svcs.length){ previewEl.textContent='Select promised work above to preview the vendor messages.'; previewEl.style.color='rgba(255,255,255,0.2)'; return; }
+    const fakeBill={stockNumber:document.getElementById('nb-stock')?document.getElementById('nb-stock').value||'N/A':'N/A',vehicleDescription:buildVehicleDesc(),customerName:document.getElementById('nb-customer')?document.getElementById('nb-customer').value||'N/A':'N/A',salesperson:document.getElementById('nb-salesperson')?document.getElementById('nb-salesperson').value||'':'',customerPhone:document.getElementById('nb-customer-phone')?document.getElementById('nb-customer-phone').value||'':''};
+    const groups=buildVendorGroups(svcs);
+    let preview='';
+    Object.values(groups).forEach(g=>{
+      const phone=getVendorPhone(g.key);
+      preview+='TO: '+g.label+(phone?' ('+phone+')':' — NO NUMBER SAVED')+'\n';
+      preview+=buildMessage(g.label,g.items,fakeBill)+'\n\n'+'─────────────────────\n\n';
+    });
+    previewEl.textContent=preview.trim(); previewEl.style.color='rgba(255,255,255,0.6)';
+  }
+
+  ['nb-stock','nb-customer','nb-salesperson','nb-customer-phone','nb-year','nb-model'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.addEventListener('input',updateMessagePreview);
+  });
+  const _makeEl=document.getElementById('nb-make'); if(_makeEl)_makeEl.addEventListener('change',updateMessagePreview);
+
+  // SUBMIT + SEND TEXTS
+  document.getElementById('submit-bill').addEventListener('click',function(){
+    const customer=document.getElementById('nb-customer').value.trim();
+    if(!customer){document.getElementById('nb-customer').focus();return;}
+    const svcs=getSelectedServices();
+    if(!svcs.length){alert('Select at least one promised work item.');return;}
+
+    const newBill={
+      id:'b'+Date.now(),customerName:customer,
+      stockNumber:document.getElementById('nb-stock').value.trim(),
+      vehicleDescription:buildVehicleDesc(),
+      licensePlate:document.getElementById('nb-license').value.trim(),
+      vin:'',saleDate:document.getElementById('nb-date').value,
+      promisedDate:'',customerPhone:document.getElementById('nb-customer-phone').value.trim(),salesperson:document.getElementById('nb-salesperson').value.trim(),
+      salesManager:'',priority:'medium',
+      notes:document.getElementById('nb-notes').value.trim(),
+      services:svcs.map((name,i)=>({id:'svc'+i,name,notes:'',status:'pending',completedAt:null})),
+      createdAt:new Date().toISOString(),completedAt:null
+    };
+
+    // Mark notified immediately — bill reaches tracker after send modal
+    newBill.notified = true;
+    const bills=getBills(); bills.unshift(newBill); saveBills(bills); pushToSheets('add',newBill);
+    const groups=buildVendorGroups(svcs);
+
+    showSendModal(newBill,groups,function(mode){
+      const groupList=Object.values(groups);
+      const sentVendors=[];
+
+      if (mode==='sms'){
+        let idx=0;
+        function sendNext(){
+          if(idx>=groupList.length){
+            if(sentVendors.length) addNoteToBill(newBill.id,'Texted '+sentVendors.join(', ')+' to schedule appointment.');
+            beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
+            initNewBillForm(); showView('tracker'); return;
+          }
+          const g=groupList[idx];
+          const phone=getVendorPhone(g.key);
+          if(phone){ openSMS(phone,buildMessage(g.label,g.items,newBill)); sentVendors.push(g.label); }
+          idx++;
+          setTimeout(sendNext,phone?1800:200);
+        }
+        sendNext();
+      } else if (mode==='whatsapp'){
+        groupList.forEach(g=>{
+          const phone=getVendorPhone(g.key);
+          if(phone){ openWhatsApp(phone,buildMessage(g.label,g.items,newBill)); sentVendors.push(g.label); }
+        });
+        if(sentVendors.length) addNoteToBill(newBill.id,'WhatsApp sent to '+sentVendors.join(', ')+' to schedule appointment.');
+        beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
+        initNewBillForm(); showView('tracker');
+      } else {
+        initNewBillForm(); showView('tracker');
+      }
+    });
+  });
+
+  // SEND MODAL
+  function showSendModal(bill, groups, callback) {
+    const overlay=document.getElementById('send-modal'), body=document.getElementById('send-modal-body');
+    if(!overlay||!body){callback('skip');return;}
+
+    const groupList=Object.values(groups);
+    const sentVendors=[];
+
+    function doNote() {
+      if(sentVendors.length) addNoteToBill(bill.id,'Messaged vendor to setup appointment.');
+    }
+
+    const _vendorMessages={};
+    groupList.forEach(g=>{ _vendorMessages[g.key]=buildMessage(g.label,g.items,bill); });
+
+    window._trackSent=function(key,label) {
+      if(!sentVendors.includes(label)){ sentVendors.push(label); doNote(); }
+    };
+
+    window._copyVendorMsg=function(key) {
+      const msg=_vendorMessages[key]; if(!msg)return;
+      if(navigator.clipboard){ navigator.clipboard.writeText(msg).then(showCopyToast); }
+      else { const ta=document.createElement('textarea');ta.value=msg;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showCopyToast(); }
+      const g=groupList.find(g=>g.key===key);
+      if(g&&!sentVendors.includes(g.label)){sentVendors.push(g.label);doNote();}
+    };
+
+    function showCopyToast(){
+      const t=document.createElement('div');t.textContent='Message copied!';
+      t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#22cc88;color:#000;padding:8px 20px;border-radius:20px;font-size:12px;font-weight:700;z-index:99999;pointer-events:none;';
+      document.body.appendChild(t);setTimeout(()=>document.body.removeChild(t),2000);
+    }
+
+    const vendorRows=groupList.map(g=>{
+      const phone=getVendorPhone(g.key),hasPhone=phone&&phone.trim();
+      const msg=buildMessage(g.label,g.items,bill);
+      const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+      const smsHref='sms:'+phone+(isIOS?'&':'?')+'body='+encodeURIComponent(msg);
+      const waHref='https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);
+      return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div><div style="font-size:13px;font-weight:700;color:#fff;">${g.label}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">${g.items.join(', ')}</div></div>
+          <div style="font-size:11px;${hasPhone?'color:#22cc88':'color:#ff4455'}">${hasPhone?phone:'No number'}</div>
         </div>
-        <div style="font-size:14px;font-weight:600;">${bill.customer||"—"}</div>
-        <div style="font-size:12px;color:#9aa3b0;margin-top:2px;margin-bottom:12px;">${bill.vehicle||"—"} · ${bill.date?String(bill.date).split("T")[0]:"—"}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
-          <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="text-align:center;font-size:12px;">Details</button>
-          <button class="btn-ghost" onclick="printBill('${bill.id}')" style="text-align:center;font-size:12px;">Print</button>
-          <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')" style="text-align:center;font-size:12px;">Delete</button>
-        </div>
-        <div id="detail_${bill.id}" style="display:none;margin-top:12px;border-top:1px solid #eef0f3;padding-top:12px;">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#9aa3b0;margin-bottom:8px;">Note History</div>
-          <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:100px;overflow-y:auto;background:#f7f8fa;border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
-          <div style="display:flex;gap:8px;margin-bottom:14px;">
-            <input type="text" id="note_${bill.id}" placeholder="Add a note..." style="flex:1;padding:10px;border:1.5px solid #dde1e7;border-radius:6px;font-size:14px;font-family:inherit;">
-            <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
-          </div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#9aa3b0;margin-bottom:8px;">Vendor Status</div>
-          ${Object.entries(bill.vendorStatuses||{}).map(([vendor,vs])=>`
-            <div style="padding:10px 0;border-bottom:1px solid #eef0f3;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                <div style="font-size:13px;font-weight:700;">${vendor}</div>
-                ${vs.phone?`<div style="display:flex;gap:4px;"><button class="btn-ghost" style="font-size:11px;padding:4px 8px;" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\\'")}')">SMS</button><button class="btn-ghost" style="font-size:11px;padding:4px 8px;" onclick="resendWhatsApp('${bill.id}','${vendor.replace(/'/g,"\\'")}')">WA</button></div>`:""}
-              </div>
-              <div style="font-size:12px;color:#5a6474;margin-bottom:8px;">${(vs.items||[]).join(", ")}</div>
-              <select class="item-status-select" style="width:100%;font-size:14px;padding:10px;" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\\'")}',this.value)">
-                <option value="open" ${vs.status==="open"?"selected":""}>Open</option>
-                <option value="scheduled" ${vs.status==="scheduled"?"selected":""}>Scheduled</option>
-                <option value="done" ${vs.status==="done"?"selected":""}>Completed</option>
-              </select>
-            </div>`).join("")}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          ${hasPhone?`<a href="${smsHref}" onclick="window._trackSent('${g.key}','${g.label}')" style="display:flex;align-items:center;justify-content:center;gap:5px;padding:10px;background:#C8102E;border-radius:8px;color:#fff;font-size:10px;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:1px;">📱 SMS</a><a href="${waHref}" target="_blank" onclick="window._trackSent('${g.key}','${g.label}')" style="display:flex;align-items:center;justify-content:center;gap:5px;padding:10px;background:#25D366;border-radius:8px;color:#fff;font-size:10px;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:1px;">💬 WA</a>`:`<div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div><div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>`}
+          <button onclick="window._copyVendorMsg('${g.key}')" style="padding:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📋 COPY</button>
         </div>
       </div>`;
-    });
-    body.innerHTML = html;
-  } else {
-    html = '<table class="tracker-table"><thead><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Customer</th><th>Vehicle</th><th>Due Date</th><th>Status</th><th></th></tr></thead><tbody>';
-    bills.forEach(bill => {
-      const st = getBillStatus(bill);
-      const badge = st==="done"?'<span class="badge badge-done">Completed</span>':st==="scheduled"?'<span class="badge badge-scheduled">Scheduled</span>':'<span class="badge badge-open">Open</span>';
-      const days = getDaysRemaining(bill.dueDate);
-      let daysHtml="—", rowClass="";
-      if(days!==null && st!=="done"){
-        if(days<0){daysHtml=`<span class="days-remaining overdue">OVERDUE ${Math.abs(days)}d</span>`;rowClass="overdue-row";}
-        else if(days===0){daysHtml=`<span class="days-remaining overdue">DUE TODAY</span>`;rowClass="overdue-row";}
-        else if(days<=3){daysHtml=`<span class="days-remaining due-soon">${days}d left</span>`;}
-        else{daysHtml=`<span class="days-remaining ok">${days}d left</span>`;}
-      }
-      html += `<tr class="${rowClass}">
-        <td style="font-size:11px;font-weight:700;color:#ea0029;white-space:nowrap;">${bill.id||"—"}</td>
-        <td style="font-size:12px;color:#9aa3b0;white-space:nowrap;">${bill.date?String(bill.date).split("T")[0]:"—"}</td>
-        <td style="font-weight:700;color:#05141f;">${bill.stock||"—"}</td>
-        <td style="font-size:13px;">${bill.customer||"—"}</td>
-        <td style="font-size:12px;color:#5a6474;">${bill.vehicle||"—"}</td>
-        <td>${daysHtml}</td>
-        <td>${badge}</td>
-        <td style="white-space:nowrap;">
-          <button class="btn-ghost" onclick="toggleDetail('${bill.id}')" style="margin-right:4px;">Details</button>
-          <button class="btn-ghost" onclick="printBill('${bill.id}')" style="margin-right:4px;">Print</button>
-          <button class="btn-ghost danger" onclick="deleteBill('${bill.id}')">Delete</button>
-        </td>
-      </tr>
-      <tr class="detail-tr" id="detail_${bill.id}" style="display:none;"><td colspan="8">
-        <div class="detail-inner">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#9aa3b0;margin-bottom:8px;">Note History</div>
-          <div id="notesDisplay_${bill.id}" style="margin-bottom:10px;max-height:120px;overflow-y:auto;background:#f7f8fa;border-radius:6px;padding:8px 10px;">${formatNotes(bill.notes||"")}</div>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
-            <input type="text" id="note_${bill.id}" placeholder="Add a new note..." style="flex:1;padding:7px 10px;border:1.5px solid #dde1e7;border-radius:6px;font-size:13px;font-family:inherit;">
-            <button class="btn-ghost" onclick="saveNote('${bill.id}')">Add</button>
-          </div>
-          <div class="detail-title">Vendor Status</div>
-          ${Object.entries(bill.vendorStatuses||{}).map(([vendor,vs])=>`
-            <div class="item-status-row">
-              <div class="item-status-name">${vendor}</div>
-              <div class="item-status-items">${(vs.items||[]).join(", ")}</div>
-              <select class="item-status-select" onchange="updateStatus('${bill.id}','${vendor.replace(/'/g,"\\'")}',this.value)">
-                <option value="open" ${vs.status==="open"?"selected":""}>Open</option>
-                <option value="scheduled" ${vs.status==="scheduled"?"selected":""}>Scheduled</option>
-                <option value="done" ${vs.status==="done"?"selected":""}>Completed</option>
-              </select>
-              ${vs.phone?`<div style='display:flex;gap:4px;'><button class="btn-ghost" onclick="resendText('${bill.id}','${vendor.replace(/'/g,"\\'")}')">SMS</button><button class="btn-ghost" onclick="resendWhatsApp('${bill.id}','${vendor.replace(/'/g,"\\'")}')">WA</button></div>`:'<span style="font-size:11px;color:#9aa3b0;">No number</span>'}
-            </div>`).join("")}
-        </div>
-      </td></tr>`;
-    });
-    html += "</tbody></table>";
-    body.innerHTML = html;
+    }).join('');
+
+    // Build photo section if we have a scanned image
+    const scannedImg = window._lastScannedImage;
+    const photoSection = scannedImg ? `
+      <div style="margin-bottom:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:10px;">DUE BILL PHOTO — ATTACH TO YOUR MESSAGE</div>
+        <img src="${scannedImg.dataUrl}" style="max-width:100%;max-height:160px;border-radius:6px;object-fit:contain;display:block;margin:0 auto 10px;" alt="Due Bill">
+        <button onclick="window._saveScanPhoto()" style="padding:8px 20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">⬇ SAVE PHOTO TO CAMERA ROLL</button>
+        <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:8px;">Save first, then attach it when your messaging app opens.</div>
+      </div>` : '';
+
+    window._saveScanPhoto = function() {
+      if(!window._lastScannedImage) return;
+      const a = document.createElement('a');
+      a.href = window._lastScannedImage.dataUrl;
+      a.download = 'due-bill-' + (bill.stockNumber || Date.now()) + '.jpg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      // Flash the button green
+      const btn = document.querySelector('[onclick="window._saveScanPhoto()"]');
+      if(btn){ btn.textContent='✓ SAVED!'; btn.style.background='rgba(34,200,136,0.2)'; btn.style.borderColor='#22cc88'; btn.style.color='#22cc88'; setTimeout(()=>{ btn.textContent='⬇ SAVE PHOTO TO CAMERA ROLL'; btn.style.background='rgba(255,255,255,0.08)'; btn.style.borderColor='rgba(255,255,255,0.15)'; btn.style.color='#fff'; },2000); }
+    };
+
+    body.innerHTML=`${photoSection}<div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:12px;">SEND TO VENDORS</div>${vendorRows}<div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:4px;font-style:italic;">A note is saved automatically when you send or copy.</div>`;
+    overlay.style.display='flex';
+    const smsBtn=document.getElementById('send-modal-sms');
+    const waBtn=document.getElementById('send-modal-wa');
+    if(smsBtn)smsBtn.style.display='none';
+    if(waBtn)waBtn.style.display='none';
+    const skipBtn=document.getElementById('send-modal-skip');
+    if(skipBtn){skipBtn.textContent='Done — Close';skipBtn.onclick=()=>{overlay.style.display='none';callback('skip');};}
+    const closeBtn=document.getElementById('send-modal-close');
+    if(closeBtn)closeBtn.onclick=()=>{overlay.style.display='none';callback('skip');};
   }
-}
 
-function toggleDetail(id) {
-  const row = document.getElementById("detail_" + id);
-  if (!row) return;
-  row.style.display = row.style.display === "none" ? (window.innerWidth <= 700 ? "block" : "table-row") : "none";
-}
 
-async function updateStatus(billId, vendor, status) {
-  await apiPost({ action:"updateStatus", billId, vendor, status });
-  const bill = getBills().find(b => b.id === billId);
-  if (bill && bill.vendorStatuses[vendor]) bill.vendorStatuses[vendor].status = status;
-  renderStats(); updateOpenCount();
-  toast("Status updated to " + status + ".");
-}
+  // TRACKER
+  function renderTracker() {
+    const bills=getBills();
+    let open=0,notified=0,completed=0;
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='complete')open++; if(s==='notified')notified++; if(s==='complete')completed++; });
+    const tsOpen=document.getElementById('ts-open'),tsOverdue=document.getElementById('ts-overdue'),tsDone=document.getElementById('ts-done');
+    if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=notified; if(tsDone)tsDone.textContent=completed;
 
-async function deleteBill(billId) {
-  if (!confirm("Delete this due bill? Cannot be undone.")) return;
-  await apiPost({ action:"deleteBill", billId });
-  _billsCache = getBills().filter(b => b.id !== billId);
-  renderTracker(); updateOpenCount();
-  toast("Due bill deleted.");
-}
+    const search=(document.getElementById('tracker-search')||{value:''}).value.toLowerCase().trim();
+    let filtered=currentFilter==='all'?bills:bills.filter(b=>computeStatus(b)===currentFilter);
+    if(search)filtered=filtered.filter(b=>(b.customerName||'').toLowerCase().includes(search)||(b.stockNumber||'').toLowerCase().includes(search)||(b.customerPhone||'').toLowerCase().includes(search));
+    const list=document.getElementById('bill-list'); if(!list)return;
 
-async function clearAllBills() {
-  if (!confirm("Delete ALL due bills permanently?")) return;
-  for (const b of getBills()) await apiPost({ action:"deleteBill", billId:b.id });
-  _billsCache = [];
-  renderTracker(); updateOpenCount();
-  toast("All due bills cleared.");
-}
-
-async function saveNote(billId) {
-  const input = document.getElementById("note_" + billId);
-  const newText = input ? input.value.trim() : "";
-  if (!newText) { toast("Type a note first."); return; }
-  const bill = getBills().find(b => b.id === billId);
-  const existing = bill && bill.notes ? bill.notes : "";
-  const ts = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
-  const combined = existing ? existing + "\n" + ts + " — " + newText : ts + " — " + newText;
-  try {
-    await apiPost({ action:"updateNote", billId, note:combined });
-    if (bill) bill.notes = combined;
-    if (input) input.value = "";
-    const display = document.getElementById("notesDisplay_" + billId);
-    if (display) display.innerHTML = formatNotes(combined);
-    toast("Note saved.");
-  } catch(e) { toast("Failed to save note: " + e.message); }
-}
-
-function resendText(billId, vendor) {
-  const bill = getBills().find(b => b.id === billId);
-  if (!bill) return;
-  const vs = bill.vendorStatuses[vendor];
-  if (!vs || !vs.phone) { toast("No phone number for this vendor."); return; }
-  openNativeSMS(vs.phone, buildMsg(vendor, vs.items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date));
-}
-
-function resendWhatsApp(billId, vendor) {
-  const bill = getBills().find(b => b.id === billId);
-  if (!bill) return;
-  const vs = bill.vendorStatuses[vendor];
-  if (!vs || !vs.phone) { toast("No phone number for this vendor."); return; }
-  window.open("https://wa.me/" + vs.phone.replace(/\D/g,"") + "?text=" + encodeURIComponent(buildMsg(vendor, vs.items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date)), "_blank");
-}
-
-// ---- SETTINGS ----
-function buildVendorSettingsRows() {
-  const container = document.getElementById("vendorSettingsRows");
-  if (!container) return;
-  VENDOR_KEYS.forEach(vnd => {
-    const key = "vendor_" + vnd.replace(/\s+/g,"_");
-    const saved = localStorage.getItem(key) || "";
-    const row = document.createElement("div");
-    row.className = "vendor-row";
-    row.innerHTML = `<div><div class="vendor-name">${vnd}</div></div><input type="tel" id="vs_${key}" placeholder="+17025550100" value="${saved}" onblur="saveVendorNum('${key}')">`;
-    container.appendChild(row);
-  });
-}
-function saveVendorNum(key) {
-  const el = document.getElementById("vs_" + key);
-  if (el && el.value.trim()) { localStorage.setItem(key, el.value.trim()); syncVendorsToSheet(); }
-}
-async function syncVendorsToSheet() {
-  const vendors = {};
-  VENDOR_KEYS.forEach(vnd => { const v = localStorage.getItem("vendor_"+vnd.replace(/\s+/g,"_")); if(v) vendors[vnd]=v; });
-  await apiPost({ action:"saveVendors", vendors });
-}
-function saveApiKey() {
-  const url = document.getElementById("googleScriptUrl");
-  if (url && url.value.trim()) localStorage.setItem("google_script_url", url.value.trim());
-  const s = document.getElementById("apiKeyStatus");
-  if (s) { s.textContent = "✓ URL saved"; setTimeout(() => s.textContent = "", 3000); }
-}
-function saveConfig() {}
-function loadConfig() {
-  const saved = localStorage.getItem("google_script_url");
-  const el = document.getElementById("googleScriptUrl");
-  if (saved && el) el.value = saved;
-}
-async function testConnection() {
-  const el = document.getElementById("testResult");
-  if (!el) return;
-  el.style.color = "#9aa3b0"; el.textContent = "Testing...";
-  try {
-    const res = await apiGet("getBills");
-    if (res.bills !== undefined) { el.style.color = "#0d6832"; el.textContent = "✓ Connected! Bills: " + res.bills.length; }
-    else { el.style.color = "#ea0029"; el.textContent = "✗ Unexpected: " + JSON.stringify(res).substring(0,80); }
-  } catch(e) { el.style.color = "#ea0029"; el.textContent = "✗ Failed: " + e.message; }
-}
-
-// ---- AI SCAN ----
-async function handleFileUpload(input) { if(input.files[0]) processScanFile(input.files[0]); }
-async function processScanFile(file) {
-  const ss = document.getElementById("scanStatus"), sc = document.getElementById("scanSuccess"), se = document.getElementById("scanError"), st = document.getElementById("scanStatusText");
-  if(ss) ss.style.display="block"; if(sc) sc.style.display="none"; if(se) se.style.display="none";
-  if(st) st.textContent = "Reading due bill...";
-  try {
-    const base64 = await fileToBase64(file);
-    const mediaType = file.type === "application/pdf" ? "application/pdf" : (file.type || "image/jpeg");
-    if(st) st.textContent = "AI extracting fields...";
-    window._lastDueBillFile = file;
-    const res = await fetch(SCRIPT_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify({ action:"scanBill", base64, mediaType }) });
-    if (!res.ok) throw new Error("Request failed: " + res.status);
-    const result = await res.json();
-    if (!result.success) throw new Error(result.error || "Scan failed");
-    const p = result.data;
-    if(p.date) document.getElementById("billDate").value = p.date;
-    if(p.stock) document.getElementById("stockNum").value = p.stock;
-    if(p.customer) document.getElementById("customerName").value = p.customer;
-    if(p.license) document.getElementById("licensePlate").value = p.license;
-    if(p.salesperson) document.getElementById("salesperson").value = p.salesperson;
-    if(p.vehicle) {
-      const ym = p.vehicle.match(/20\d{2}/);
-      if(ym) { const s = document.getElementById("vehicleYear"); if(s) for(let o of s.options) if(o.value===ym[0]) { s.value=ym[0]; break; } }
-      for(const make of ALL_MAKES) {
-        if(p.vehicle.toLowerCase().includes(make.toLowerCase())) {
-          const ms = document.getElementById("vehicleMake"); if(ms) ms.value = make;
-          updateModelDropdown();
-          if(MAKES_MODELS[make]) for(const model of MAKES_MODELS[make]) if(p.vehicle.toLowerCase().includes(model.toLowerCase())) { const ms2=document.getElementById("vehicleModel"); if(ms2) ms2.value=model; break; }
-          break;
-        }
-      }
-      buildVehicleDesc();
+    if(!filtered.length){
+      list.innerHTML='<div class="empty-state"><div style="width:40px;height:40px;border:2px solid rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div><div style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);">NO DUE BILLS</div></div>';
+      return;
     }
-    const ITEM_MAP = {"GPS":"gps","Red Alert":"redalert","Polysteel":"polysteel","XPEL Tint":"tint","XPEL PPF":"ppf","Body Work":"bodyshop","Detail":"detail","Ceramic Coat":"ceramic","Powder Wheels":"powder"};
-    if(Array.isArray(p.items)) p.items.forEach(item => { const id=ITEM_MAP[item]; if(id){const chk=document.getElementById("chk_"+id),chip=document.getElementById("chip_"+id);if(chk&&chip){chk.checked=true;chip.classList.add("checked");}} });
-    updatePreview();
-    if(ss) ss.style.display="none"; if(sc) sc.style.display="block";
-  } catch(e) {
-    if(ss) ss.style.display="none";
-    if(se) { se.style.display="block"; se.textContent="Scan failed: "+e.message; }
+
+    list.innerHTML=filtered.map(b=>{
+      const status=computeStatus(b);
+      const borderColor=status==='overdue'?'#ff4455':status==='due-soon'||status==='in-progress'?'#f59e0b':status==='complete'?'#22cc88':'rgba(255,255,255,0.15)';
+      const badgeMap={'notified':['notified','NOTIFIED'],'not-notified':['not-notified','NOT NOTIFIED'],complete:['complete','COMPLETE']};
+      const [badgeClass,badgeLabel]=badgeMap[status]||['not-notified','NOT NOTIFIED'];
+      const svcsHtml=b.services.slice(0,4).map(s=>{const cls=s.status==='in-progress'?'in-progress':s.status==='complete'?'complete':'pending';const short=s.name.length>12?s.name.slice(0,12)+'…':s.name;return`<span class="svc-tag ${cls}">${short}</span>`;}).join('');
+      const lastNote=b.notes?(b.notes.split('\n').filter(Boolean).pop()||''):'';
+      return `<div class="bill-card" data-bill-id="${b.id}" style="border-left:4px solid ${borderColor};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;font-weight:700;color:#fff;">${b.customerName}</span>
+          ${b.stockNumber?`<span style="font-size:9px;border:1px solid rgba(200,16,46,0.4);color:#ff6677;padding:2px 8px;border-radius:4px;">${b.stockNumber}</span>`:''}
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;">${b.vehicleDescription}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div>${svcsHtml}</div>${b.customerPhone?`<span style="font-size:10px;color:rgba(255,255,255,0.4);">${b.customerPhone}</span>`:''}</div>
+        ${lastNote?`<div style="font-size:9px;color:rgba(255,255,255,0.25);margin-top:6px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lastNote}</div>`:''}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+          <span style="font-size:9px;color:rgba(255,255,255,0.3);font-style:italic;">${b.salesperson||''}</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="status-badge ${badgeClass}">${badgeLabel}</span>
+            ${status!=='complete'?'<button class="action-btn btn-complete" data-action="complete" title="Mark Complete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>':'<button class="action-btn btn-undo" data-action="undo" title="Undo Complete" style="color:#f59e0b;border-color:rgba(245,158,11,0.3);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>'}
+            <button class="action-btn" data-action="view" title="View Detail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button class="action-btn" data-action="resend" title="Resend Texts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+            <button class="action-btn btn-delete" data-action="delete" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
   }
-}
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result.split(",")[1]);
-    r.onerror = () => reject(new Error("Failed to read file"));
-    r.readAsDataURL(file);
-  });
-}
 
-// ---- PRINT ----
-function printBill(billId) {
-  const bill = getBills().find(b => b.id === billId);
-  if (!bill) return;
-  const vendors = Object.entries(bill.vendorStatuses||{});
-  const kiaImg = document.querySelector(".kia-logo img");
-  const kiaLogo = kiaImg ? `<img src="${kiaImg.src}" alt="KIA" style="height:36px;width:auto;">` : `<span style="font-size:28px;font-weight:900;color:#ea0029;">KIA</span>`;
-  const win = window.open("","_blank");
-  win.document.write(`<html><head><title>Due Bill ${bill.id}</title><style>
-    body{font-family:Arial,sans-serif;padding:30px;max-width:720px;margin:0 auto;}
-    .hdr{display:flex;align-items:center;gap:20px;border-bottom:3px solid #ea0029;padding-bottom:16px;margin-bottom:20px;}
-    .div{width:1px;height:40px;background:#ddd;}
-    .ttl{font-size:20px;font-weight:900;text-transform:uppercase;color:#05141f;}
-    .sub{font-size:12px;color:#888;margin-top:2px;}
-    table{width:100%;border-collapse:collapse;margin-bottom:18px;}
-    th{background:#05141f;color:#fff;padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;}
-    td{padding:9px 12px;border-bottom:1px solid #eee;font-size:13px;}
-    .due{font-size:13px;margin-bottom:16px;padding:8px 12px;background:#f7f8fa;border-radius:5px;border-left:3px solid #ea0029;}
-    .notes{font-size:12px;margin-bottom:20px;padding:10px 12px;background:#f7f8fa;border-radius:5px;}
-    .disc{font-size:10px;color:#888;margin-bottom:30px;line-height:1.6;}
-    .sigs{display:flex;justify-content:space-between;margin-top:40px;}
-    .sig{border-top:1px solid #333;padding-top:6px;font-size:11px;color:#666;width:220px;}
-    .ftr{text-align:center;font-size:11px;font-weight:700;letter-spacing:.05em;color:#333;border-top:2px solid #05141f;padding-top:12px;margin-top:20px;}
-    .pbtn{margin-top:20px;padding:12px 24px;background:#ea0029;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;}
-    @media print{.pbtn{display:none;}}
-  </style></head><body>
-  <div class="hdr">${kiaLogo}<div class="div"></div><div><div class="ttl">Towbin Kia — Due Bill</div><div class="sub">Henderson, NV &nbsp;|&nbsp; (702) 567-8000 &nbsp;|&nbsp; 260 N Gibson Rd</div></div></div>
-  <table><tr><th>Bill ID</th><th>Date</th><th>Stock #</th><th>Salesperson</th></tr>
-    <tr><td><strong>${bill.id}</strong></td><td>${String(bill.date||"").split("T")[0]}</td><td><strong>${bill.stock||"—"}</strong></td><td>${bill.sales||"—"}</td></tr>
-  </table>
-  <table><tr><th>Customer</th><th>Vehicle</th><th>License</th></tr>
-    <tr><td>${bill.customer||"—"}</td><td>${bill.vehicle||"—"}</td><td>${bill.license||"—"}</td></tr>
-  </table>
-  ${bill.dueDate&&String(bill.dueDate).trim()?`<div class="due"><strong>Customer Return Date:</strong> ${String(bill.dueDate).split("T")[0]}</div>`:""}
-  <table><tr><th>#</th><th>Vendor</th><th>Work Promised</th><th>Status</th></tr>
-    ${vendors.map(([vendor,vs],i)=>`<tr><td>${i+1}</td><td>${vendor}</td><td>${(vs.items||[]).join(", ")}</td><td style="text-transform:capitalize;">${vs.status||"Open"}</td></tr>`).join("")}
-  </table>
-  ${bill.notes?`<div class="notes"><strong>Notes:</strong> ${bill.notes}</div>`:""}
-  <p class="disc">NOTE: The above promised work is the only work to be performed free of charge. All work must be done in our shop. You must make an advance appointment with the service department before the above work can be performed.</p>
-  <div class="sigs"><div><div class="sig">Signed Sales Mgr. X</div></div><div><div class="sig">Signed Customer X</div></div></div>
-  <div class="ftr">DUE TO INSURANCE REGULATIONS — NO LOAN CARS AVAILABLE</div>
-  <button class="pbtn" onclick="window.print()">Print / Save as PDF</button>
-  </body></html>`);
-  win.document.close();
-}
-
-// ---- UTILITIES ----
-function toast(msg) {
-  const el = document.getElementById("toast");
-  if (!el) return;
-  el.textContent = msg; el.classList.add("show");
-  setTimeout(() => el.classList.remove("show"), 3000);
-}
-function updateClock() {
-  const el = document.getElementById("clock");
-  if (el) el.textContent = new Date().toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
-}
-
-// ---- INIT ----
-document.addEventListener("DOMContentLoaded", () => {
-  // Date default
-  const bd = document.getElementById("billDate");
-  if (bd) bd.value = new Date().toISOString().split("T")[0];
-
-  // Dropdowns
-  initYearDropdown();
-  initMakeDropdown();
-
-  // Form
-  buildItemsGrid();
-  buildVendorSettingsRows();
-  loadConfig();
-
-  // Clock
-  updateClock();
-  setInterval(updateClock, 30000);
-
-  // Preview listeners
-  ["stockNum","customerName","salesperson","billDate","licensePlate","dueDate","dealNotes"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", updatePreview);
+  document.getElementById('filter-bar').addEventListener('click',function(e){
+    const pill=e.target.closest('.filter-pill'); if(!pill)return;
+    document.querySelectorAll('#filter-bar .filter-pill').forEach(p=>p.classList.remove('active'));
+    pill.classList.add('active'); currentFilter=pill.dataset.filter; beep(700,0.05); renderTracker();
   });
 
-  // Drag & drop
-  const dz = document.getElementById("dropZone");
-  if (dz) {
-    dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dragover"); });
-    dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
-    dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("dragover"); if(e.dataTransfer.files[0]) processScanFile(e.dataTransfer.files[0]); });
+  document.getElementById('bill-list').addEventListener('click',function(e){
+    const btn=e.target.closest('[data-action]'); if(!btn)return;
+    const card=btn.closest('[data-bill-id]'); const id=card?card.dataset.billId:null; if(!id)return;
+    const action=btn.dataset.action;
+    if(action==='complete')markComplete(id,card);
+    if(action==='view')viewBill(id);
+    if(action==='delete')deleteBill(id);
+    if(action==='resend')resendTexts(id);
+    if(action==='undo')undoComplete(id);
+  });
+
+  function markComplete(id,cardEl){
+    const bills=getBills(), bill=bills.find(b=>b.id===id); if(!bill)return;
+    bill.services.forEach(s=>{s.status='complete';s.completedAt=todayStr();}); bill.completedAt=todayStr();
+    saveBills(bills); pushToSheets('update',bill);
+    addNoteToBill(id,'All services marked complete.');
+    beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
+    if(cardEl){cardEl.classList.add('flash-green');setTimeout(()=>{renderTracker();updateHomeStats();},600);}
+    else{renderTracker();updateHomeStats();}
   }
 
-  // Session expiry check
-  setInterval(() => {
-    const gate = document.getElementById("passwordGate");
-    if (!isLoggedIn() && gate && gate.style.display === "none") { signOut(); toast("Session expired."); }
-  }, 60000);
-
-  // Load data if already signed in
-  if (isLoggedIn()) {
-    fetchBills().then(() => { fetchVendors(); updateOpenCount(); renderTracker(); }).catch(e => console.error(e));
+  function undoComplete(id){
+    const bills=getBills(), bill=bills.find(b=>b.id===id); if(!bill)return;
+    bill.completedAt=null;
+    bill.notified=true; // keep notified — vendor was still texted
+    bill.services.forEach(s=>{s.status='pending';s.completedAt=null;});
+    saveBills(bills); pushToSheets('update',bill);
+    addNoteToBill(id,'Marked incomplete — reopened.');
+    beep(400,0.1);
+    renderTracker(); updateHomeStats();
   }
-});
+
+  function deleteBill(id){
+    if(!confirm('Delete this due bill?'))return;
+    saveBills(getBills().filter(b=>b.id!==id)); pushToSheets('delete',id);
+    beep(300,0.1); renderTracker(); updateHomeStats();
+  }
+
+  function resendTexts(id){
+    const bill=getBills().find(b=>b.id===id); if(!bill)return;
+    const groups=buildVendorGroups(bill.services.map(s=>s.name));
+    // showSendModal handles per-vendor SMS/WA/Copy links and auto-notes
+    showSendModal(bill,groups,function(){ renderTracker(); });
+  }
+
+  // BILL DETAIL
+  function viewBill(id){
+    const bill=getBills().find(b=>b.id===id); if(!bill)return;
+    const status=computeStatus(bill), body=document.getElementById('detail-body');
+    const statusColor=status==='overdue'?'#ff4455':status==='complete'?'#22cc88':'#f59e0b';
+    const svcRows=bill.services.map((s,i)=>{
+      const dc=s.status==='in-progress'?'#f59e0b':s.status==='complete'?'#22cc88':'rgba(255,255,255,0.3)';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;">${i+1}.</span><span style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0;"></span><span style="font-size:12px;color:rgba(255,255,255,0.7);flex:1;">${s.name}</span><span style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;">${s.status.replace('-',' ')}</span></div>`;
+    }).join('');
+
+    const renderNotes=()=>{
+      if(!bill.notes)return'<div style="font-size:10px;color:rgba(255,255,255,0.2);font-style:italic;">No notes yet.</div>';
+      return bill.notes.split('\n').filter(Boolean).map(line=>`<div style="padding:5px 0;font-size:10px;color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.04);">${line}</div>`).join('');
+    };
+
+    body.innerHTML=`
+      <div style="text-align:center;margin-bottom:16px;"><div style="font-style:italic;font-weight:900;font-size:20px;color:#fff;letter-spacing:1px;">TOWBIN KIA</div><div style="font-size:24px;font-weight:800;color:#C8102E;letter-spacing:3px;margin-top:4px;">DUE BILL</div></div>
+      <table class="detail-table">
+        <tr><td>DATE</td><td>${fmtDate(bill.saleDate)}</td></tr>
+        <tr><td>VEHICLE</td><td>${bill.vehicleDescription}</td></tr>
+        <tr><td>STOCK #</td><td>${bill.stockNumber||'—'}</td></tr>
+        <tr><td>CUSTOMER</td><td>${bill.customerName}</td></tr>
+        <tr><td>SALESPERSON</td><td>${bill.salesperson||'—'}</td></tr>
+        <tr><td>LICENSE</td><td>${bill.licensePlate||'—'}</td></tr>
+        <tr><td>CUSTOMER PHONE</td><td>${bill.customerPhone||'—'}</td></tr>
+        <tr><td>STATUS</td><td style="text-transform:uppercase;color:${statusColor};">${status.replace('-',' ')}</td></tr>
+      </table>
+      <div style="margin-top:16px;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:8px;">PROMISED SERVICES</div>
+      ${svcRows}
+      <div style="margin-top:16px;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);margin-bottom:8px;">NOTE HISTORY</div>
+      <div id="detail-notes-list" style="margin-bottom:10px;max-height:90px;overflow-y:auto;">${renderNotes()}</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input type="text" id="detail-note-input" placeholder="Add a note..." style="flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:7px 10px;color:#fff;font-size:12px;font-family:inherit;outline:none;">
+        <button id="detail-note-save" style="padding:7px 14px;background:#C8102E;border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;">ADD</button>
+      </div>
+      <div class="notice-box">NOTHING ELSE PROMISED OR IMPLIED</div>
+      <button class="btn-submit" id="btn-print-detail" style="margin-top:14px;">PRINT DUE BILL</button>`;
+
+    document.getElementById('detail-note-save').addEventListener('click',function(){
+      const input=document.getElementById('detail-note-input'), text=input?input.value.trim():'';
+      if(!text)return;
+      addNoteToBill(id,text); if(input)input.value='';
+      const updated=getBills().find(b=>b.id===id);
+      if(updated)bill.notes=updated.notes;
+      const nl=document.getElementById('detail-notes-list'); if(nl)nl.innerHTML=renderNotes();
+      beep(700,0.05);
+    });
+    document.getElementById('btn-print-detail').addEventListener('click',()=>printBill(bill));
+    document.getElementById('detail-overlay').classList.add('show');
+  }
+
+
+  // PRINT BILL
+  function printBill(bill) {
+    const status = computeStatus(bill);
+    const svcRows = bill.services.map((s,i) =>
+      `<tr><td>${i+1}</td><td>${s.name}</td><td style="text-transform:capitalize;">${s.status.replace('-',' ')}</td></tr>`
+    ).join('');
+
+    const win = window.open('','_blank','width=800,height=600');
+    win.document.write(`<!DOCTYPE html><html><head><title>Due Bill ${bill.id||''}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:40px;max-width:700px;margin:0 auto;color:#000;}
+      .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #C8102E;padding-bottom:16px;margin-bottom:24px;}
+      .kia{font-style:italic;font-weight:900;font-size:36px;color:#C8102E;letter-spacing:2px;}
+      .title{font-size:22px;font-weight:900;text-transform:uppercase;color:#000;margin-top:4px;}
+      .sub{font-size:11px;color:#666;margin-top:2px;}
+      table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+      th{background:#C8102E;color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;}
+      td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;}
+      td:first-child{color:#666;font-size:11px;text-transform:uppercase;width:140px;}
+      .notice{border:2px solid #000;padding:12px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:20px 0;}
+      .sigs{display:flex;justify-content:space-between;margin-top:40px;}
+      .sig{border-top:1px solid #000;padding-top:6px;font-size:11px;color:#666;width:200px;}
+      .ftr{text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;border-top:2px solid #C8102E;padding-top:12px;margin-top:20px;color:#C8102E;}
+      .print-btn{margin-top:20px;padding:12px 28px;background:#C8102E;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;}
+      @media print{.print-btn{display:none;}}
+    </style></head><body>
+    <div class="hdr">
+      <div><div class="kia">KIA</div><div class="title">Due Bill</div><div class="sub">Towbin Kia · 260 N Gibson Rd, Henderson NV · (702) 567-8000</div></div>
+      <div style="text-align:right;"><div style="font-size:11px;color:#666;">Bill ID</div><div style="font-size:18px;font-weight:900;color:#C8102E;">${bill.id||'—'}</div><div style="font-size:11px;color:#666;margin-top:4px;">${bill.saleDate||''}</div></div>
+    </div>
+    <table>
+      <tr><td>Customer</td><td><strong>${bill.customerName||'—'}</strong></td></tr>
+      <tr><td>Vehicle</td><td>${bill.vehicleDescription||'—'}</td></tr>
+      <tr><td>Stock #</td><td>${bill.stockNumber||'—'}</td></tr>
+      <tr><td>License Plate</td><td>${bill.licensePlate||'—'}</td></tr>
+      <tr><td>Salesperson</td><td>${bill.salesperson||'—'}</td></tr>
+      <tr><td>Customer Phone</td><td>${bill.customerPhone||'—'}</td></tr>
+    </table>
+    <table>
+      <thead><tr><th>#</th><th>Promised Work</th><th>Status</th></tr></thead>
+      <tbody>${svcRows}</tbody>
+    </table>
+    ${bill.notes?`<div style="margin-bottom:20px;font-size:12px;"><strong>Notes:</strong> ${bill.notes.split('\n').join('<br>')}</div>`:''}
+    <div class="notice">NOTE: The above promised work is the ONLY work to be performed free of charge.<br>All work must be done in our shop. Appointment required.</div>
+    <div class="sigs">
+      <div><div class="sig">Sales Manager Signature</div></div>
+      <div><div class="sig">Customer Signature</div></div>
+    </div>
+    <div class="ftr">Due to insurance regulations — No loan cars available</div>
+    <br><button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </body></html>`);
+    win.document.close();
+  }
+
+  // SCAN VIEW
+  function handleScanFile(file){
+    if(!file)return;
+    const scanOverlay=document.getElementById('scan-overlay'); if(scanOverlay)scanOverlay.style.display='flex';
+    const resultsEl=document.getElementById('scan-results'); if(resultsEl)resultsEl.innerHTML='';
+
+    const reader=new FileReader();
+    reader.onload=async function(e){
+      const base64=e.target.result.split(',')[1], mimeType=file.type||'image/jpeg';
+
+      if(!sheetScriptUrl){
+        if(scanOverlay)scanOverlay.style.display='none';
+        if(resultsEl)resultsEl.innerHTML='<div style="padding:12px;background:rgba(255,68,85,0.1);border:1px solid rgba(255,68,85,0.3);border-radius:8px;font-size:11px;color:#ff8899;line-height:1.6;"><strong>No Apps Script URL saved.</strong> Go to Settings, paste your URL and save first.</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(sheetScriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ action: 'scanBill', base64, mimeType })
+        });
+        const result = await res.json();
+        if(!result.success) throw new Error(result.error || 'Scan failed');
+        if(scanOverlay)scanOverlay.style.display='none';
+        // Store the scanned image for attaching in send modal
+        window._lastScannedImage = { dataUrl: e.target.result, mimeType };
+        _scanFilling=true; showView('new-bill'); setTimeout(()=>fillNewBillForm(result.data),80);
+      } catch(err){
+        if(scanOverlay)scanOverlay.style.display='none';
+        // Still store image even if AI scan failed — staff filled form manually
+        window._lastScannedImage = { dataUrl: e.target.result, mimeType };
+        if(resultsEl)resultsEl.innerHTML=`<div style="padding:12px;background:rgba(255,68,85,0.1);border:1px solid rgba(255,68,85,0.3);border-radius:8px;font-size:11px;color:#ff8899;line-height:1.6;"><strong>Scan failed:</strong> ${err.message}<br><br>Fill in the form manually and hit ISSUE DUE BILL to send texts.</div>`;
+        setTimeout(()=>{ _scanFilling=false; showView('new-bill'); },2500);
+      }
+    };
+    reader.onerror=()=>{ if(scanOverlay)scanOverlay.style.display='none'; alert('Could not read file.'); };
+    reader.readAsDataURL(file);
+  }
+
+  function fillNewBillForm(data){
+    if(!data)return;
+    const setField=(id,v)=>{ const el=document.getElementById(id); if(el&&v)el.value=v; };
+    const toDate=str=>{ if(!str)return''; const p=str.split('/'); if(p.length===3)return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); return/^\d{4}-\d{2}-\d{2}$/.test(str)?str:str; };
+    setField('nb-date',toDate(data.date)); setField('nb-stock',data.stockNumber); setField('nb-customer',data.customerName);
+    setField('nb-license',data.licensePlate); setField('nb-year',data.year); setField('nb-model',data.model);
+    setField('nb-salesperson',data.salesperson); setField('nb-customer-phone',data.customerPhone||''); setField('nb-notes',data.notes);
+    if(data.make){const mk=document.getElementById('nb-make');if(mk){const match=Array.from(mk.options).find(o=>o.value.toLowerCase()===data.make.toLowerCase()||o.value.toLowerCase().includes(data.make.toLowerCase())||data.make.toLowerCase().includes(o.value.toLowerCase()));if(match)mk.value=match.value;}}
+    document.querySelectorAll('#work-grid .work-btn').forEach(btn=>btn.classList.remove('work-selected'));
+    if(data.services&&Array.isArray(data.services)){document.querySelectorAll('#work-grid .work-btn').forEach(btn=>{const label=(btn.getAttribute('data-work')||'').toLowerCase();if(data.services.some(svc=>{ const s=svc.toLowerCase();return s.includes(label)||label.includes(s);}))btn.classList.add('work-selected');});}
+    const flash=document.getElementById('scan-success-flash');if(flash){flash.classList.add('show');setTimeout(()=>flash.classList.remove('show'),4000);}
+    updateMessagePreview(); beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
+  }
+
+  const fileInput=document.getElementById('file-input'), cameraInput=document.getElementById('camera-input');
+  if(fileInput)fileInput.addEventListener('change',function(){if(this.files[0])handleScanFile(this.files[0]);this.value='';});
+  if(cameraInput)cameraInput.addEventListener('change',function(){if(this.files[0])handleScanFile(this.files[0]);this.value='';});
+
+  document.getElementById('btn-browse').addEventListener('click',()=>{if(fileInput)fileInput.click();});
+  document.getElementById('btn-camera').addEventListener('click',()=>{if(cameraInput)cameraInput.click();});
+  document.getElementById('btn-retake').addEventListener('click',()=>{initNewBillForm();showView('scan');});
+
+  const dropZone=document.getElementById('scan-drop-zone');
+  if(dropZone){
+    dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover');});
+    dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)handleScanFile(f);});
+    dropZone.addEventListener('click',()=>{if(fileInput)fileInput.click();});
+  }
+
+  // SETTINGS — VENDOR PHONES
+  function renderVendorSettings(){
+    const container=document.getElementById('vendor-phone-rows'); if(!container)return;
+    container.innerHTML=VENDOR_KEYS.map(v=>{
+      const saved=getVendorPhone(v.key);
+      return `<div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);">${v.label}</div>
+        <input type="tel" data-vendor-key="${v.key}" class="field-input vendor-phone-input" placeholder="+17025550100" value="${saved||''}" style="font-size:12px;">
+      </div>`;
+    }).join('');
+    container.querySelectorAll('.vendor-phone-input').forEach(input=>{
+      input.addEventListener('blur',function(){saveVendorPhone(this.dataset.vendorKey,this.value);});
+    });
+  }
+
+  const toggleSound=document.getElementById('toggle-sound');
+  if(toggleSound)toggleSound.addEventListener('click',function(){this.classList.toggle('on');soundEnabled=this.classList.contains('on');});
+
+
+  const btnExport=document.getElementById('btn-export');
+  if(btnExport)btnExport.addEventListener('click',function(){
+    const blob=new Blob([JSON.stringify(getBills(),null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='kia-duebills-export.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);beep(523,0.08);
+  });
+
+  const btnClear=document.getElementById('btn-clear');
+  if(btnClear)btnClear.addEventListener('click',function(){
+    if(!confirm('Clear ALL due bill data? Cannot be undone.'))return;
+    localStorage.removeItem(LS_KEY);localStorage.removeItem(INIT_KEY);beep(300,0.15);updateHomeStats();
+    if(document.getElementById('view-tracker').classList.contains('active-view'))renderTracker();
+  });
+
+  const sheetUrlInput=document.getElementById('sheet-url-input');
+  if(sheetUrlInput&&sheetScriptUrl)sheetUrlInput.value=sheetScriptUrl;
+
+  const btnSaveUrl=document.getElementById('btn-save-sheet-url');
+  if(btnSaveUrl)btnSaveUrl.addEventListener('click',function(){
+    const url=sheetUrlInput?sheetUrlInput.value:'';saveSheetUrl(url);
+    const lbl=document.getElementById('sync-label-settings');if(lbl)lbl.textContent=url?'CONNECTING...':'NOT CONNECTED';
+  });
+
+  const btnSyncNow=document.getElementById('btn-sync-now');
+  if(btnSyncNow)btnSyncNow.addEventListener('click',async function(){
+    await pullFromSheets();
+    const lbl=document.getElementById('sync-label-settings'),dot=document.getElementById('sync-status-dot-settings');
+    if(syncState==='live'){if(dot)dot.style.background='#10b981';if(lbl)lbl.textContent='CONNECTED — Google Sheets is live ✓';}
+    else if(syncState==='error'){if(dot)dot.style.background='#ff4455';if(lbl)lbl.textContent='ERROR — check URL and redeploy';}
+  });
+
+  // INJECT SYNC DOT
+  (function(){
+    const iconsEl=document.getElementById('status-icons-right');
+    if(iconsEl&&iconsEl.parentNode){
+      const badge=document.createElement('div');
+      badge.style.cssText='display:flex;align-items:center;gap:5px;margin-left:10px;padding-left:10px;border-left:1px solid rgba(255,255,255,0.08);';
+      badge.innerHTML='<div id="sync-status-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.18);flex-shrink:0;transition:background 0.3s,box-shadow 0.3s;"></div><span id="sync-status-label" style="font-size:8px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.3);text-transform:uppercase;">LOCAL</span>';
+      iconsEl.parentNode.appendChild(badge);
+    }
+  })();
+
+  // STARTUP SYNC
+  updateSyncDot(sheetScriptUrl?'syncing':'local');
+  if(sheetScriptUrl){
+    const lbl=document.getElementById('sync-label-settings'),dot=document.getElementById('sync-status-dot-settings');
+    if(lbl)lbl.textContent='CONNECTED — syncing...';if(dot)dot.style.background='#f59e0b';
+    pullFromSheets().then(()=>{
+      if(syncState==='live'){
+        const l=document.getElementById('sync-label-settings'),d=document.getElementById('sync-status-dot-settings');
+        if(l)l.textContent='CONNECTED — Google Sheets is live ✓';if(d)d.style.background='#10b981';
+      }
+    });
+  }
+
+}); // end DOMContentLoaded
