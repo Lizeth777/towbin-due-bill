@@ -1,0 +1,27 @@
+{
+  "name": "Towbin Kia — Due Bill Tracker",
+  "short_name": "Due Bills",
+  "description": "Towbin Kia internal due bill tracking and vendor notification system",
+  "start_url": "/towbin-due-bill/",
+  "scope": "/towbin-due-bill/",
+  "display": "fullscreen",
+  "orientation": "portrait-primary",
+  "background_color": "#080810",
+  "theme_color": "#C8102E",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-US"
+}
