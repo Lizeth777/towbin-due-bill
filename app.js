@@ -109,7 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const INIT_KEY   = 'kia-init-v4';
   const GSHEET_KEY = 'kia-gsheet-url';
 
-  let sheetScriptUrl = localStorage.getItem(GSHEET_KEY) || '';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2TAnybqj_eB-ZCKk4q33DEVebruRepjA0TB_i-Un7E77R8B164yFs11tcahorLvuH/exec';
+  let sheetScriptUrl = localStorage.getItem(GSHEET_KEY) || DEFAULT_SCRIPT_URL;
   let syncState      = 'local';
   let soundEnabled   = true;
   let currentFilter  = 'all';
