@@ -1,4 +1,4 @@
-// TOWBIN KIA — DUE BILL TRACKER — app.js
+// TOWBIN KIA — DUE BILL TRACKER — app.js v1.1.7
 
 // ---- CONSTANTS ----
 const TK_KEY    = "tk_auth_ts";
@@ -134,13 +134,13 @@ async function fetchVendors() {
 // ---- NAVIGATION ----
 function showTab(name) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(t => t.classList.remove("active"));
   const page = document.getElementById("page-" + name);
   if (page) page.classList.add("active");
-  document.querySelectorAll(".nav-tab").forEach(t => {
+  document.querySelectorAll(".nav-btn").forEach(t => {
     if ((t.getAttribute("onclick")||"").includes("'" + name + "'")) t.classList.add("active");
   });
-  if (name === "tracker") { renderTracker(); updateOpenCount(); }
+  if (name === "tracker") { fetchBills().then(() => { renderTracker(); updateOpenCount(); }).catch(e => console.error(e)); }
 }
 
 // ---- VEHICLE DROPDOWNS ----
@@ -427,10 +427,10 @@ function renderStats() {
   const el = document.getElementById("statsRow");
   if (!el) return;
   el.innerHTML = `
-    <div class="stat-card"><div class="stat-num">${bills.length}</div><div class="stat-label">Total Bills</div></div>
-    <div class="stat-card"><div class="stat-num warn">${open}</div><div class="stat-label">Open</div></div>
-    <div class="stat-card"><div class="stat-num sched">${sched}</div><div class="stat-label">Scheduled</div></div>
-    <div class="stat-card"><div class="stat-num green">${done}</div><div class="stat-label">Completed</div></div>`;
+    <div class="stat-card"><div class="stat-num">${bills.length}</div><div class="stat-lbl">Total Bills</div></div>
+    <div class="stat-card"><div class="stat-num warn">${open}</div><div class="stat-lbl">Open</div></div>
+    <div class="stat-card"><div class="stat-num sched">${sched}</div><div class="stat-lbl">Scheduled</div></div>
+    <div class="stat-card"><div class="stat-num green">${done}</div><div class="stat-lbl">Completed</div></div>`;
 }
 
 function setFilter(f, el) {
