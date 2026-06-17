@@ -161,8 +161,17 @@ body { font-family: 'Inter', Arial, sans-serif; background: var(--gray-50); colo
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+
+input[type="date"] { -webkit-appearance: none; appearance: none; }
 input[type="text"], input[type="date"], input[type="tel"], select {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 9px 12px;
   border: 1.5px solid var(--gray-200);
   border-radius: 7px;
@@ -500,6 +509,7 @@ input::placeholder { color: var(--gray-400); }
 .days-remaining.ok { color: var(--success); }
 
 @media (max-width: 700px) {
+  input[type="date"] { font-size: 16px; min-height: 44px; }
   /* Header */
   .site-header { padding: 0 14px; height: 56px; }
   .header-pill { display: none; }
@@ -526,6 +536,7 @@ input::placeholder { color: var(--gray-400); }
   input[type="text"], input[type="date"], input[type="tel"], select {
     padding: 11px 12px; font-size: 16px; border-radius: 8px;
   }
+  input[type="date"] { width: 100%; max-width: 100%; display: block; }
 
   /* Items grid - 2 col on mobile */
   .items-grid { grid-template-columns: 1fr 1fr; gap: 7px; }
@@ -684,7 +695,7 @@ if (isLoggedIn()) {
     </button>
     <div id="pwdError" style="color:#f08090;font-size:12px;margin-top:10px;text-align:center;display:none;">Incorrect password. Try again.</div>
   </div>
-  <div style="color:#5a6474;font-size:11px;">Towbin Kia — Internal Use Only &nbsp;|&nbsp; <span style="color:#163348;">v1.0.8</span></div>
+  <div style="color:#5a6474;font-size:11px;">Towbin Kia — Internal Use Only &nbsp;|&nbsp; <span style="color:#163348;">v1.0.9</span></div>
 </div>
 
 <!-- HEADER -->
@@ -700,7 +711,7 @@ if (isLoggedIn()) {
   <div class="header-right">
     <div class="header-pill">Henderson, NV</div>
     <div class="header-clock" id="clock"></div>
-    <div style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;letter-spacing:0.04em;">v1.0.8</div>
+    <div style="color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;letter-spacing:0.04em;">v1.0.9</div>
   </div>
 </header>
 
