@@ -551,6 +551,19 @@ function generateBillId() {
   return "DB-" + dateStr + "-" + String(seq).padStart(3, '0');
 }
 
+function getBillStatus(bill) {
+  const s = Object.values(bill.vendorStatuses||{}).map(x => x.status);
+  if (s.every(x => x==="done")) return "done";
+  if (s.some(x => x==="scheduled")) return "scheduled";
+  return "open";
+}
+
+function updateOpenCount() {
+  const open = getBills().filter(b => Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
+  const el = document.getElementById("openCount");
+  if (el) { el.style.display = open > 0 ? "inline" : "none"; el.textContent = open; }
+}
+
 function renderStats() {
   const bills = getBills();
   const open = bills.filter(b => Object.values(b.vendorStatuses||{}).some(v => v.status==="open")).length;
@@ -777,4 +790,127 @@ function printBill(billId) {
     </body></html>
   `);
   win.document.close();
+}
+function formatNotes(notes) {
+  if (!notes) return '<em style="color:#9aa3b0;font-size:12px;">No notes yet.</em>';
+  return notes.split("\n").map(line => `<div style="padding:4px 0;font-size:12px;color:#5a6474;border-bottom:1px solid #eef0f3;">${line}</div>`).join("");
+}
+
+async function saveNote(billId) {
+  const input = document.getElementById("note_" + billId);
+  const newText = input ? input.value.trim() : "";
+  if (!newText) { toast("Type a note first."); return; }
+  const bill = getBills().find(b => b.id === billId);
+  const existing = (bill && bill.notes) ? bill.notes : "";
+  const timestamp = new Date().toLocaleDateString("en-US",{month:"2-digit",day:"2-digit",year:"2-digit"}) + " " + new Date().toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  const combined = existing ? existing + "\n" + timestamp + " — " + newText : timestamp + " — " + newText;
+  try {
+    await apiPost({ action:"updateNote", billId, note: combined });
+    if (bill) bill.notes = combined;
+    if (input) input.value = "";
+    const display = document.getElementById("notesDisplay_" + billId);
+    if (display) display.innerHTML = formatNotes(combined);
+    toast("Note saved.");
+  } catch(e) { toast("Failed to save note: " + e.message); }
+}
+
+function resendWhatsApp(billId, vendor) {
+  const bill = getBills().find(b => b.id === billId);
+  if (!bill) return;
+  const vs = bill.vendorStatuses[vendor];
+  if (!vs || !vs.phone) { toast("No phone number saved for this vendor."); return; }
+  const msg = buildMsg(vendor, vs.items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date);
+  const phone = vs.phone.replace(/\D/g,"");
+  window.open("https://wa.me/" + phone + "?text=" + encodeURIComponent(msg), "_blank");
+  toast("WhatsApp opened for " + vendor + ".");
+}
+
+function resendText(billId, vendor) {
+  const bill = getBills().find(b => b.id === billId);
+  if (!bill) return;
+  const vs = bill.vendorStatuses[vendor];
+  if (!vs || !vs.phone) { toast("No phone number saved for this vendor."); return; }
+  const msg = buildMsg(vendor, vs.items, bill.stock, bill.customer, bill.vehicle, bill.sales, bill.date);
+  openNativeSMS(vs.phone, msg);
+  toast("Text opened for " + vendor + ".");
+}
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  if (!el) return;
+  el.textContent = msg; el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
+
+function updateClock() {
+  const el = document.getElementById("clock");
+  if (el) el.textContent = new Date().toLocaleString("en-US", { weekday:"short", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+
+// ---- INIT ----
+document.getElementById('billDate').value = new Date().toISOString().split('T')[0];
+initYearDropdown();
+initMakeDropdown();
+buildItemsGrid();
+buildVendorSettingsRows();
+loadConfig();
+updateClock();
+setInterval(updateClock, 30000);
+
+// Auto sign-out check every 60 seconds
+setInterval(() => {
+  if (!isLoggedIn() && document.getElementById("passwordGate") && document.getElementById("passwordGate").style.display === "none") {
+    signOut();
+    toast("Session expired — please sign in again.");
+  }
+}, 60000);
+
+// If already logged in on page load, fetch data
+if (isLoggedIn()) {
+  (async () => {
+    try {
+      await Promise.all([fetchBills(), fetchVendors()]);
+      updateOpenCount();
+    } catch(e) { console.error("Sheet load failed:", e); }
+  })();
+}
+
+function initYearDropdown() {
+  const sel = document.getElementById('vehicleYear');
+  if (!sel) return;
+  const cur = new Date().getFullYear();
+  for (let y = cur + 1; y >= 2000; y--) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if (y === cur) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function initMakeDropdown() {
+  const sel = document.getElementById('vehicleMake');
+  if (!sel) return;
+  ALL_MAKES.forEach(make => {
+    const opt = document.createElement('option');
+    opt.value = make; opt.textContent = make;
+    sel.appendChild(opt);
+  });
+}
+
+function buildVehicleDesc() {
+  const year = document.getElementById('vehicleYear') ? document.getElementById('vehicleYear').value : '';
+  const make = document.getElementById('vehicleMake') ? document.getElementById('vehicleMake').value : '';
+  const model = document.getElementById('vehicleModel') ? document.getElementById('vehicleModel').value : '';
+  const otherWrap = document.getElementById('vehicleOtherWrap');
+  const otherInput = document.getElementById('vehicleOther');
+  if (make === 'Other') {
+    if (otherWrap) otherWrap.style.display = 'block';
+    const desc = document.getElementById('vehicleDesc');
+    if (desc) desc.value = otherInput ? otherInput.value.trim() : '';
+  } else {
+    if (otherWrap) otherWrap.style.display = 'none';
+    const desc = document.getElementById('vehicleDesc');
+    if (desc) desc.value = [year, make, model].filter(Boolean).join(' ');
+  }
+  updatePreview();
 }
