@@ -3,7 +3,7 @@
    Enables offline mode and PWA installability
    ============================================================ */
 
-const CACHE_NAME = 'towbin-duebill-v2';
+const CACHE_NAME = 'towbin-duebill-v3';
 const ASSETS = [
   '/towbin-due-bill/',
   '/towbin-due-bill/index.html',
@@ -73,4 +73,11 @@ self.addEventListener('fetch', event => {
         });
       })
   );
+});
+
+// Allow immediate activation when update is found
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
