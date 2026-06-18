@@ -400,17 +400,18 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Add vendor from home widget
+  // Home widget buttons
   const homeAddVendor=document.getElementById('home-add-vendor');
-  if(homeAddVendor)homeAddVendor.addEventListener('click',function(){
-    const pb=getPhonebook();
-    pb.push({id:'pb'+Date.now(),label:'',phone:''});
-    savePhonebook(pb); renderHomePhonebook();
-    setTimeout(()=>{
-      const inputs=document.querySelectorAll('.home-pb-label');
-      if(inputs.length)inputs[inputs.length-1].focus();
-    },50);
-  });
+  if(homeAddVendor)homeAddVendor.addEventListener('click',()=>openPhonebookModal());
+
+  const homeViewPhonebook=document.getElementById('home-view-phonebook');
+  if(homeViewPhonebook)homeViewPhonebook.addEventListener('click',()=>openPhonebookView());
+
+  const vendorModalClose=document.getElementById('vendor-modal-close');
+  if(vendorModalClose)vendorModalClose.addEventListener('click',()=>{ document.getElementById('vendor-modal').style.display='none'; });
+
+  const pbViewClose=document.getElementById('phonebook-view-close');
+  if(pbViewClose)pbViewClose.addEventListener('click',()=>{ document.getElementById('phonebook-view-modal').style.display='none'; });
 
   updateHomeStats();
 
