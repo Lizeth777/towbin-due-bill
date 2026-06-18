@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function () {
       'Customer: '+(bill.customerName||'N/A')+(bill.customerPhone?' | '+bill.customerPhone:'')+'\n'+
       'Work Needed: '+items.join(', ')+'\n'+
       'Salesperson: '+(bill.salesperson||'—')+'\n'+
-      'Please schedule ASAP.';
+      'Please reach out to the customer directly to schedule.';
   }
 
   function openSMS(phone, body) {
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     body.innerHTML=`${photoSection}<div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:12px;">SEND TO VENDORS</div>${vendorRows}<div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:4px;font-style:italic;">A note is saved automatically when you send or copy.</div>`;
-    overlay.style.display='flex';
+    overlay.style.display='flex'; overlay.style.alignItems='center'; overlay.style.justifyContent='center';
     const smsBtn=document.getElementById('send-modal-sms');
     const waBtn=document.getElementById('send-modal-wa');
     if(smsBtn)smsBtn.style.display='none';
