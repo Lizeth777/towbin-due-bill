@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const INIT_KEY   = 'kia-init-v4';
   const GSHEET_KEY = 'kia-gsheet-url';
 
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5MakUNv5ft67tsOXipWHejSH4Xy9rA23RFYmYv3YXIBpHYZ02JW2NoK8N4-YQZq42/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxiUQ0YsGOMECs0N5P9DaUEivwmwaDCcCGFQRsVf1jM_a5ENk1sFl5vy72GRuniv8_s/exec';
   // ALWAYS force hardcoded URL — clears any previously saved URL on every load
   localStorage.removeItem(GSHEET_KEY);
   localStorage.setItem(GSHEET_KEY, DEFAULT_SCRIPT_URL);
