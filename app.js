@@ -150,7 +150,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const GSHEET_KEY = 'kia-gsheet-url';
 
   const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5MakUNv5ft67tsOXipWHejSH4Xy9rA23RFYmYv3YXIBpHYZ02JW2NoK8N4-YQZq42/exec';
-  // Always use hardcoded URL — overwrite any old cached URL on device
+  // ALWAYS force hardcoded URL — clears any previously saved URL on every load
+  localStorage.removeItem(GSHEET_KEY);
   localStorage.setItem(GSHEET_KEY, DEFAULT_SCRIPT_URL);
   let sheetScriptUrl = DEFAULT_SCRIPT_URL;
   let syncState      = 'local';
@@ -194,8 +195,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // getVendorPhone now handled by phonebook above
 
   function computeStatus(bill) {
-    if (bill.completedAt) return 'completed';
-    return 'scheduled'; // all active bills are scheduled
+    if (bill.completedAt && bill.completedAt !== '' && bill.completedAt !== 'null') return 'completed';
+    return 'scheduled';
   }
 
   // VENDOR MESSAGE BUILDER
@@ -260,6 +261,14 @@ document.addEventListener('DOMContentLoaded', function () {
     updateSyncDot('syncing');
     const r=await sheetGet({action:'getAll'});
     if (r&&r.success&&Array.isArray(r.bills)){
+      // Normalize dates from Sheets — convert ISO strings to YYYY-MM-DD
+      r.bills.forEach(function(b){
+        if(b.saleDate && b.saleDate.length > 10) b.saleDate = b.saleDate.substring(0,10);
+        if(b.completedAt && b.completedAt === 'null') b.completedAt = null;
+        if(b.completedAt === '') b.completedAt = null;
+        if(!Array.isArray(b.services)) b.services = [];
+        if(b.notified === undefined) b.notified = true;
+      });
       localStorage.setItem(LS_KEY,JSON.stringify(r.bills));
       updateSyncDot('live');
       updateHomeStats();
@@ -690,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let open=0,completed=0;
     bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; else completed++; });
     const tsOpen=document.getElementById('ts-open'),tsOverdue=document.getElementById('ts-overdue'),tsDone=document.getElementById('ts-done');
-    if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=notified; if(tsDone)tsDone.textContent=completed;
+    if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=open; if(tsDone)tsDone.textContent=completed;
 
     const search=(document.getElementById('tracker-search')||{value:''}).value.toLowerCase().trim();
     let filtered=currentFilter==='all'?bills:bills.filter(b=>computeStatus(b)===currentFilter);
