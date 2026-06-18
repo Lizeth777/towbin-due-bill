@@ -111,7 +111,31 @@ document.addEventListener('DOMContentLoaded', function () {
       { id:'pb6', label:'Other Vendor',   phone:'' }
     ];
   }
-  function savePhonebook(pb) { localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(pb)); }
+  function savePhonebook(pb) {
+    localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(pb));
+    // Push to Sheets in background
+    pushPhonebookToSheets(pb);
+  }
+
+  function pushPhonebookToSheets(pb) {
+    if (!sheetScriptUrl) return;
+    fetch(sheetScriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'savePhonebook', phonebook: pb })
+    }).catch(()=>{});
+  }
+
+  async function pullPhonebookFromSheets() {
+    if (!sheetScriptUrl) return;
+    try {
+      const res = await fetch(sheetScriptUrl + '?action=getPhonebook', { redirect: 'follow' });
+      const data = JSON.parse(await res.text());
+      if (data.success && Array.isArray(data.phonebook) && data.phonebook.length > 0) {
+        localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(data.phonebook));
+      }
+    } catch(e) {}
+  }
   // Keep VENDOR_KEYS for backward compat with VENDOR_MAP phone lookup
   function getVendorPhone(key) {
     // First check old localStorage keys
@@ -132,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const INIT_KEY   = 'kia-init-v4';
   const GSHEET_KEY = 'kia-gsheet-url';
 
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2TAnybqj_eB-ZCKk4q33DEVebruRepjA0TB_i-Un7E77R8B164yFs11tcahorLvuH/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNAVNS7_6fzfCEttpDW1QsvHRPv14aM7aOfCR8yJ31-i_smDWNfIpVxB0TRxgwy0k-/exec';
   let sheetScriptUrl = localStorage.getItem(GSHEET_KEY) || DEFAULT_SCRIPT_URL;
   let syncState      = 'local';
   let soundEnabled   = true;
@@ -1006,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if(sheetScriptUrl){
     const lbl=document.getElementById('sync-label-settings'),dot=document.getElementById('sync-status-dot-settings');
     if(lbl)lbl.textContent='CONNECTED — syncing...';if(dot)dot.style.background='#f59e0b';
+    pullPhonebookFromSheets().then(()=>renderHomePhonebook());
     pullFromSheets().then(()=>{
       if(syncState==='live'){
         const l=document.getElementById('sync-label-settings'),d=document.getElementById('sync-status-dot-settings');
