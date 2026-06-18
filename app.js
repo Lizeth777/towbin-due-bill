@@ -150,7 +150,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const GSHEET_KEY = 'kia-gsheet-url';
 
   const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwqu2OOQD3FuL_bUCKvAoB5vxIAIRFo0pr0o7Rkw23vxUTHo6bPcGMDJNIaiF6Fx0Uc/exec';
-  let sheetScriptUrl = localStorage.getItem(GSHEET_KEY) || DEFAULT_SCRIPT_URL;
+  // Always use hardcoded URL — overwrite any old cached URL on device
+  localStorage.setItem(GSHEET_KEY, DEFAULT_SCRIPT_URL);
+  let sheetScriptUrl = DEFAULT_SCRIPT_URL;
   let syncState      = 'local';
   let soundEnabled   = true;
   let currentFilter  = 'all';
