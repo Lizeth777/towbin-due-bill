@@ -448,34 +448,36 @@
 </div>
 
 <!-- ADD/EDIT VENDOR MODAL -->
-<div id="vendor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
-  <div style="background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;">
+<div id="vendor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;backdrop-filter:blur(4px);">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px calc(28px + env(safe-area-inset-bottom));">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
       <div id="vendor-modal-title" style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#fff;">ADD VENDOR</div>
-      <button id="vendor-modal-close" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:22px;line-height:1;padding:4px;">✕</button>
+      <button id="vendor-modal-close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:rgba(255,255,255,0.5);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
     <div style="margin-bottom:16px;">
       <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:8px;">VENDOR NAME</label>
-      <input id="vendor-modal-name" type="text" placeholder="e.g. Fam Solutions" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;">
+      <input id="vendor-modal-name" type="text" placeholder="e.g. Fam Solutions" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">
     </div>
     <div style="margin-bottom:24px;">
       <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:8px;">PHONE NUMBER</label>
-      <input id="vendor-modal-phone" type="tel" placeholder="+17025550100" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;">
+      <input id="vendor-modal-phone" type="tel" placeholder="+17025550100" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">
     </div>
-    <button id="vendor-modal-save" style="width:100%;padding:16px;background:#C8102E;border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;margin-bottom:10px;">SAVE VENDOR</button>
-    <button id="vendor-modal-delete" style="display:none;width:100%;padding:12px;background:none;border:1px solid rgba(255,68,85,0.3);border-radius:12px;color:#ff4455;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:inherit;">REMOVE VENDOR</button>
+    <button id="vendor-modal-save" style="width:100%;padding:16px;background:#C8102E;border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;margin-bottom:10px;box-sizing:border-box;">SAVE VENDOR</button>
+    <button id="vendor-modal-delete" style="display:none;width:100%;padding:12px;background:none;border:1px solid rgba(255,68,85,0.3);border-radius:12px;color:#ff4455;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:inherit;box-sizing:border-box;">REMOVE VENDOR</button>
   </div>
 </div>
 
 <!-- VIEW PHONEBOOK MODAL -->
-<div id="phonebook-view-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
-  <div style="background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;">
+<div id="phonebook-view-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;backdrop-filter:blur(4px);">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;max-height:75vh;background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px 0;display:flex;flex-direction:column;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-shrink:0;">
       <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#fff;">VENDOR DIRECTORY</div>
-      <button id="phonebook-view-close" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:22px;line-height:1;padding:4px;">✕</button>
+      <button id="phonebook-view-close" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:32px;height:32px;color:rgba(255,255,255,0.5);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
     <div id="phonebook-view-body" style="flex:1;overflow-y:auto;"></div>
-    <button id="phonebook-view-add" style="margin-top:16px;width:100%;padding:14px;background:rgba(200,16,46,0.12);border:1px solid rgba(200,16,46,0.3);border-radius:12px;color:#ff6677;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;flex-shrink:0;">+ ADD VENDOR</button>
+    <div style="padding:16px 0 calc(16px + env(safe-area-inset-bottom));flex-shrink:0;">
+      <button id="phonebook-view-add" style="width:100%;padding:14px;background:rgba(200,16,46,0.12);border:1px solid rgba(200,16,46,0.3);border-radius:12px;color:#ff6677;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;">+ ADD VENDOR</button>
+    </div>
   </div>
 </div>
 
