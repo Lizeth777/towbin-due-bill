@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const INIT_KEY   = 'kia-init-v4';
   const GSHEET_KEY = 'kia-gsheet-url';
 
-  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw6Da-bRpdTsGORKMuDZyVpLj3300tulvcv8vyYy9iKRQwilOQA-gUk5rAFawBPiB01/exec';
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx5MakUNv5ft67tsOXipWHejSH4Xy9rA23RFYmYv3YXIBpHYZ02JW2NoK8N4-YQZq42/exec';
   // Always use hardcoded URL — overwrite any old cached URL on device
   localStorage.setItem(GSHEET_KEY, DEFAULT_SCRIPT_URL);
   let sheetScriptUrl = DEFAULT_SCRIPT_URL;
@@ -707,7 +707,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const borderColor=status==='overdue'?'#ff4455':status==='due-soon'||status==='in-progress'?'#f59e0b':status==='complete'?'#22cc88':'rgba(255,255,255,0.15)';
       const badgeMap={scheduled:['notified','SCHEDULED'],completed:['complete','COMPLETED']};
       const [badgeClass,badgeLabel]=badgeMap[status]||['notified','SCHEDULED'];
-      const svcsHtml=b.services.slice(0,4).map(s=>{const cls=s.status==='in-progress'?'in-progress':s.status==='complete'?'complete':'pending';const short=s.name.length>12?s.name.slice(0,12)+'…':s.name;return`<span class="svc-tag ${cls}">${short}</span>`;}).join('');
+      const svcs=Array.isArray(b.services)?b.services:[];
+      const svcsHtml=svcs.slice(0,4).map(s=>{const cls=s.status==='in-progress'?'in-progress':s.status==='complete'?'complete':'pending';const short=(s.name||'').length>12?(s.name||'').slice(0,12)+'…':(s.name||'');return`<span class="svc-tag ${cls}">${short}</span>`;}).join('');
       const lastNote=b.notes?(b.notes.split('\n').filter(Boolean).pop()||''):'';
       return `<div class="bill-card" data-bill-id="${b.id}" style="border-left:4px solid ${borderColor};">
         <div style="display:flex;justify-content:space-between;align-items:center;">
