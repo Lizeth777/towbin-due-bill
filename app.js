@@ -370,48 +370,103 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function renderHomePhonebook() {
-    const container=document.getElementById('home-phonebook'); if(!container)return;
-    const pb=getPhonebook();
-    container.innerHTML=pb.map((v,idx)=>`
-      <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div>
-          <input type="text" class="home-pb-label" data-idx="${idx}" value="${v.label||''}" placeholder="Vendor name"
-            style="width:100%;background:transparent;border:none;color:rgba(255,255,255,0.8);font-size:11px;font-weight:600;font-family:inherit;outline:none;padding:0;margin-bottom:2px;">
-          <input type="tel" class="home-pb-phone" data-idx="${idx}" value="${v.phone||''}" placeholder="Phone number"
-            style="width:100%;background:transparent;border:none;color:rgba(255,255,255,0.4);font-size:10px;font-family:inherit;outline:none;padding:0;">
-        </div>
-        <button class="home-pb-delete" data-idx="${idx}"
-          style="background:none;border:none;color:rgba(255,68,85,0.5);cursor:pointer;font-size:14px;padding:4px;flex-shrink:0;">✕</button>
-      </div>`).join('');
-
-    container.querySelectorAll('.home-pb-label,.home-pb-phone').forEach(input=>{
-      input.addEventListener('blur',function(){
-        const pb2=getPhonebook(), idx=parseInt(this.dataset.idx);
-        if(this.classList.contains('home-pb-label')) pb2[idx].label=this.value.trim();
-        else pb2[idx].phone=this.value.trim();
-        savePhonebook(pb2);
-      });
-    });
-    container.querySelectorAll('.home-pb-delete').forEach(btn=>{
-      btn.addEventListener('click',function(){
-        const pb2=getPhonebook(); pb2.splice(parseInt(this.dataset.idx),1);
-        savePhonebook(pb2); renderHomePhonebook();
-      });
-    });
+    // no-op — vendors shown via modal only
   }
 
-  // Home widget buttons
-  const homeAddVendor=document.getElementById('home-add-vendor');
-  if(homeAddVendor)homeAddVendor.addEventListener('click',()=>openPhonebookModal());
+  // ── OPEN ADD/EDIT VENDOR MODAL ─────────────────
+  function openPhonebookModal(editIdx) {
+    const modal  = document.getElementById('vendor-modal');         if(!modal) return;
+    const title  = document.getElementById('vendor-modal-title');
+    const nameEl = document.getElementById('vendor-modal-name');
+    const phoneEl= document.getElementById('vendor-modal-phone');
+    const saveBtn= document.getElementById('vendor-modal-save');
+    const delBtn = document.getElementById('vendor-modal-delete');
 
-  const homeViewPhonebook=document.getElementById('home-view-phonebook');
-  if(homeViewPhonebook)homeViewPhonebook.addEventListener('click',()=>openPhonebookView());
+    const pb    = getPhonebook();
+    const isEdit= editIdx !== undefined;
+    const entry = isEdit ? pb[editIdx] : null;
 
-  const vendorModalClose=document.getElementById('vendor-modal-close');
-  if(vendorModalClose)vendorModalClose.addEventListener('click',()=>{ document.getElementById('vendor-modal').style.display='none'; });
+    if(title)  title.textContent  = isEdit ? 'EDIT VENDOR' : 'ADD VENDOR';
+    if(nameEl) nameEl.value       = entry ? entry.label : '';
+    if(phoneEl)phoneEl.value      = entry ? entry.phone : '';
+    if(delBtn) delBtn.style.display = isEdit ? 'block' : 'none';
 
-  const pbViewClose=document.getElementById('phonebook-view-close');
-  if(pbViewClose)pbViewClose.addEventListener('click',()=>{ document.getElementById('phonebook-view-modal').style.display='none'; });
+    modal.style.display = 'flex';
+    setTimeout(()=>{ if(nameEl) nameEl.focus(); }, 150);
+
+    // Clone to remove old listeners
+    const newSave = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSave, saveBtn);
+    newSave.addEventListener('click', function() {
+      const name  = document.getElementById('vendor-modal-name')  ? document.getElementById('vendor-modal-name').value.trim()  : '';
+      const phone = document.getElementById('vendor-modal-phone') ? document.getElementById('vendor-modal-phone').value.trim() : '';
+      if(!name) { document.getElementById('vendor-modal-name').focus(); return; }
+      const pb2 = getPhonebook();
+      if(isEdit) { pb2[editIdx] = { id: pb2[editIdx].id, label: name, phone }; }
+      else       { pb2.push({ id: 'pb'+Date.now(), label: name, phone }); }
+      savePhonebook(pb2);
+      modal.style.display = 'none';
+      beep(523, 0.08);
+    });
+
+    if(delBtn) {
+      const newDel = delBtn.cloneNode(true);
+      delBtn.parentNode.replaceChild(newDel, delBtn);
+      newDel.style.display = isEdit ? 'block' : 'none';
+      newDel.addEventListener('click', function() {
+        if(!confirm('Remove ' + (entry ? entry.label : 'this vendor') + '?')) return;
+        const pb2 = getPhonebook();
+        pb2.splice(editIdx, 1);
+        savePhonebook(pb2);
+        modal.style.display = 'none';
+        beep(300, 0.1);
+      });
+    }
+  }
+
+  // ── OPEN VIEW PHONEBOOK MODAL ──────────────────
+  function openPhonebookView() {
+    const modal = document.getElementById('phonebook-view-modal'); if(!modal) return;
+    const body  = document.getElementById('phonebook-view-body');  if(!body)  return;
+
+    function renderView() {
+      const pb = getPhonebook();
+      body.innerHTML = pb.length
+        ? pb.map((v,idx)=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+              <div>
+                <div style="font-size:15px;font-weight:700;color:#fff;">${v.label||'—'}</div>
+                <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:3px;">${v.phone||'No number saved'}</div>
+              </div>
+              <button data-edit="${idx}" style="padding:8px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">EDIT</button>
+            </div>`).join('')
+        : '<div style="padding:30px 0;text-align:center;font-size:13px;color:rgba(255,255,255,0.25);">No vendors yet. Tap + ADD VENDOR to get started.</div>';
+
+      body.querySelectorAll('[data-edit]').forEach(btn=>{
+        btn.addEventListener('click', function(){
+          modal.style.display = 'none';
+          openPhonebookModal(parseInt(this.dataset.edit));
+        });
+      });
+    }
+
+    renderView();
+    modal.style.display = 'flex';
+
+    // Add vendor from view modal
+    const addBtn = document.getElementById('phonebook-view-add');
+    if(addBtn) {
+      const newAdd = addBtn.cloneNode(true);
+      addBtn.parentNode.replaceChild(newAdd, addBtn);
+      newAdd.addEventListener('click', ()=>{ modal.style.display='none'; openPhonebookModal(); });
+    }
+  }
+
+  // ── WIRE UP BUTTONS ────────────────────────────
+  document.getElementById('home-add-vendor')    .addEventListener('click', ()=>openPhonebookModal());
+  document.getElementById('home-view-phonebook') .addEventListener('click', ()=>openPhonebookView());
+  document.getElementById('vendor-modal-close')  .addEventListener('click', ()=>{ document.getElementById('vendor-modal').style.display='none'; });
+  document.getElementById('phonebook-view-close').addEventListener('click', ()=>{ document.getElementById('phonebook-view-modal').style.display='none'; });
 
   updateHomeStats();
 
