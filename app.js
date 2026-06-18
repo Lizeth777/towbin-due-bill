@@ -551,41 +551,15 @@ document.addEventListener('DOMContentLoaded', function () {
       createdAt:new Date().toISOString(),completedAt:null
     };
 
-    // Mark notified immediately — bill reaches tracker after send modal
-    newBill.notified = true;
-    const bills=getBills(); bills.unshift(newBill); saveBills(bills); pushToSheets('add',newBill);
     const groups=buildVendorGroups(svcs);
 
     showSendModal(newBill,groups,function(mode){
-      const groupList=Object.values(groups);
-      const sentVendors=[];
-
-      if (mode==='sms'){
-        let idx=0;
-        function sendNext(){
-          if(idx>=groupList.length){
-            if(sentVendors.length) addNoteToBill(newBill.id,'Texted '+sentVendors.join(', ')+' to schedule appointment.');
-            beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
-            initNewBillForm(); showView('tracker'); return;
-          }
-          const g=groupList[idx];
-          const phone=getVendorPhone(g.key);
-          if(phone){ openSMS(phone,buildMessage(g.label,g.items,newBill)); sentVendors.push(g.label); }
-          idx++;
-          setTimeout(sendNext,phone?1800:200);
-        }
-        sendNext();
-      } else if (mode==='whatsapp'){
-        groupList.forEach(g=>{
-          const phone=getVendorPhone(g.key);
-          if(phone){ openWhatsApp(phone,buildMessage(g.label,g.items,newBill)); sentVendors.push(g.label); }
-        });
-        if(sentVendors.length) addNoteToBill(newBill.id,'WhatsApp sent to '+sentVendors.join(', ')+' to schedule appointment.');
-        beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
-        initNewBillForm(); showView('tracker');
-      } else {
-        initNewBillForm(); showView('tracker');
-      }
+      if(mode==='cancelled') return; // X pressed — do nothing, bill not saved
+      // Save bill only when Done — Close is pressed
+      newBill.notified = true;
+      const bills=getBills(); bills.unshift(newBill); saveBills(bills); pushToSheets('add',newBill);
+      beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
+      initNewBillForm(); showView('tracker');
     });
   });
 
@@ -711,9 +685,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if(smsBtn)smsBtn.style.display='none';
     if(waBtn)waBtn.style.display='none';
     const skipBtn=document.getElementById('send-modal-skip');
-    if(skipBtn){skipBtn.textContent='Done — Close';skipBtn.onclick=()=>{overlay.style.display='none';callback('skip');};}
+    if(skipBtn){skipBtn.textContent='Done — Close';skipBtn.onclick=()=>{overlay.style.display='none';callback('done');};}
     const closeBtn=document.getElementById('send-modal-close');
-    if(closeBtn)closeBtn.onclick=()=>{overlay.style.display='none';callback('skip');};
+    if(closeBtn)closeBtn.onclick=()=>{overlay.style.display='none';callback('cancelled');};
   }
 
 
@@ -1065,6 +1039,23 @@ document.addEventListener('DOMContentLoaded', function () {
   if(btnSaveUrl)btnSaveUrl.addEventListener('click',function(){
     const url=sheetUrlInput?sheetUrlInput.value:'';saveSheetUrl(url);
     const lbl=document.getElementById('sync-label-settings');if(lbl)lbl.textContent=url?'CONNECTING...':'NOT CONNECTED';
+  });
+
+  const btnSyncPhonebook=document.getElementById('btn-sync-phonebook');
+  if(btnSyncPhonebook)btnSyncPhonebook.addEventListener('click',async function(){
+    const pb=getPhonebook();
+    if(!pb.length){alert('No vendors in phonebook to sync.');return;}
+    btnSyncPhonebook.textContent='Syncing...';
+    pushPhonebookToSheets(pb);
+    await pullPhonebookFromSheets();
+    btnSyncPhonebook.textContent='✓ Phonebook synced to all devices!';
+    btnSyncPhonebook.style.color='#22cc88';
+    btnSyncPhonebook.style.borderColor='rgba(34,200,136,0.3)';
+    setTimeout(()=>{
+      btnSyncPhonebook.textContent='📱 SYNC PHONEBOOK TO ALL DEVICES';
+      btnSyncPhonebook.style.color='#ff6677';
+      btnSyncPhonebook.style.borderColor='rgba(200,16,46,0.2)';
+    },3000);
   });
 
   const btnSyncNow=document.getElementById('btn-sync-now');
