@@ -442,30 +442,10 @@
 
 <script src="app.js"></script>
 <script>
+  // Unregister all service workers so updates always come through immediately
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/towbin-due-bill/sw.js')
-        .then(reg => {
-          // Check for updates immediately and every 60 seconds
-          reg.update();
-          setInterval(() => reg.update(), 60000);
-          // When new SW is waiting, activate it immediately
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New version available — reload automatically
-                newWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
-            });
-          });
-        })
-        .catch(err => console.log('SW registration failed:', err));
-      // Reload when SW takes control
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister());
     });
   }
 </script>
