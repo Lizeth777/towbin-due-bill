@@ -96,10 +96,13 @@
               <span style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.5);font-weight:700;">VENDORS</span>
             </div>
             <div id="home-phonebook" style="max-height:100px;overflow-y:auto;margin-bottom:8px;"></div>
-            <button id="home-add-vendor" style="width:100%;padding:6px;background:rgba(200,16,46,0.1);border:1px solid rgba(200,16,46,0.25);border-radius:8px;color:#ff6677;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:5px;">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              ADD VENDOR
-            </button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <button id="home-view-phonebook" style="padding:7px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.6);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;text-transform:uppercase;">VIEW ALL</button>
+              <button id="home-add-vendor" style="padding:7px;background:rgba(200,16,46,0.1);border:1px solid rgba(200,16,46,0.25);border-radius:8px;color:#ff6677;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:4px;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                ADD
+              </button>
+            </div>
           </div>
           <div class="widget-divider"></div>
           <div class="stat-block">
@@ -445,6 +448,38 @@
       <button id="send-modal-wa" style="padding:14px;background:#25D366;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;font-family:inherit;">💬 WhatsApp</button>
     </div>
     <button id="send-modal-skip" style="width:100%;padding:10px;background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(255,255,255,0.4);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:inherit;">Save Bill Only (No Texts)</button>
+  </div>
+</div>
+
+<!-- ADD/EDIT VENDOR MODAL -->
+<div id="vendor-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div id="vendor-modal-title" style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#fff;">ADD VENDOR</div>
+      <button id="vendor-modal-close" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:22px;line-height:1;padding:4px;">✕</button>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:8px;">VENDOR NAME</label>
+      <input id="vendor-modal-name" type="text" placeholder="e.g. Fam Solutions" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;">
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:8px;">PHONE NUMBER</label>
+      <input id="vendor-modal-phone" type="tel" placeholder="+17025550100" style="width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;font-size:16px;font-family:inherit;outline:none;">
+    </div>
+    <button id="vendor-modal-save" style="width:100%;padding:16px;background:#C8102E;border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;margin-bottom:10px;">SAVE VENDOR</button>
+    <button id="vendor-modal-delete" style="display:none;width:100%;padding:12px;background:none;border:1px solid rgba(255,68,85,0.3);border-radius:12px;color:#ff4455;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:inherit;">REMOVE VENDOR</button>
+  </div>
+</div>
+
+<!-- VIEW PHONEBOOK MODAL -->
+<div id="phonebook-view-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:#0f0f1c;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-shrink:0;">
+      <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:3px;color:#fff;">VENDOR DIRECTORY</div>
+      <button id="phonebook-view-close" style="background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;font-size:22px;line-height:1;padding:4px;">✕</button>
+    </div>
+    <div id="phonebook-view-body" style="flex:1;overflow-y:auto;"></div>
+    <button id="phonebook-view-add" style="margin-top:16px;width:100%;padding:14px;background:rgba(200,16,46,0.12);border:1px solid rgba(200,16,46,0.3);border-radius:12px;color:#ff6677;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;cursor:pointer;font-family:inherit;flex-shrink:0;">+ ADD VENDOR</button>
   </div>
 </div>
 
