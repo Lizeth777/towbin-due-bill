@@ -966,17 +966,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Add vendor button
   const btnAddVendor=document.getElementById('btn-add-vendor');
-  if(btnAddVendor)btnAddVendor.addEventListener('click',function(){
-    const pb=getPhonebook();
-    pb.push({id:'pb'+Date.now(),label:'',phone:''});
-    savePhonebook(pb);
-    renderVendorSettings();
-    // Focus the new label field
-    setTimeout(()=>{
-      const inputs=document.querySelectorAll('.pb-label');
-      if(inputs.length)inputs[inputs.length-1].focus();
-    },50);
-  });
+  if(btnAddVendor)btnAddVendor.addEventListener('click',()=>openPhonebookModal());
 
 
 
