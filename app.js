@@ -1,5 +1,5 @@
 /* ============================================================
-   KIA DUE BILL TRACKER — app.js v1.1.8
+   KIA DUE BILL TRACKER — app.js v2.1
    Towbin Kia · Telluride UI + Full Send/Vendor/Note Functionality
    ============================================================ */
 
@@ -326,14 +326,8 @@ document.addEventListener('DOMContentLoaded', function () {
   updateWidgetDate();
 
   // SEED DATA
-  function seedData() {
-    if (localStorage.getItem(INIT_KEY)) return;
-    saveBills([
-      { id:'b1',customerName:'Griselda Puentes Zavaleta',stockNumber:'T6189',vehicleDescription:'2026 Kia Telluride SX',licensePlate:'',vin:'',saleDate:'2026-05-25',salesperson:'Aaliyah Alvarado',salesManager:'',customerPhone:'',notified:false,services:[{id:'s1',name:'GPS',notes:'',status:'pending',completedAt:null},{id:'s2',name:'Red Alert',notes:'',status:'pending',completedAt:null},{id:'s3',name:'Polysteel',notes:'',status:'pending',completedAt:null},{id:'s4',name:'XPEL Tint',notes:'',status:'pending',completedAt:null}],priority:'high',notes:'',createdAt:'2026-05-25T10:00:00Z',completedAt:null },
-      { id:'b2',customerName:'Marcus Thompson',stockNumber:'T6201',vehicleDescription:'2026 Kia Sportage LX',licensePlate:'',vin:'',saleDate:'2026-06-10',salesperson:'James Rivera',salesManager:'',customerPhone:'',notified:false,services:[{id:'s6',name:'Ceramic Coat',notes:'',status:'pending',completedAt:null},{id:'s7',name:'XPEL PPF',notes:'',status:'in-progress',completedAt:null}],priority:'medium',notes:'',createdAt:'2026-06-10T14:00:00Z',completedAt:null }
-    ]);
-    localStorage.setItem(INIT_KEY,'1');
-  }
+  // No seed data — clean slate for all users
+  function seedData() { localStorage.setItem(INIT_KEY,'1'); }
   seedData();
 
   // VIEW SYSTEM
@@ -570,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const groupList=Object.values(groups);
     const sentVendors=[];
+    const pb=getPhonebook();
 
     function doNote() {
       if(sentVendors.length) addNoteToBill(bill.id,'Messaged vendor to setup appointment.');
@@ -604,8 +599,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 
-    // Build vendor picker options from phonebook — pulled fresh every time modal opens
-    const pb = getPhonebook();
     const pbOptions = pb.length
       ? `<option value="" style="background:#1a1a2e;color:#fff;">— Select vendor —</option>` + pb.map((v,i)=>`<option value="${i}" data-phone="${v.phone||''}" style="background:#1a1a2e;color:#fff;">${v.label}${v.phone?' · '+v.phone:' (no number)'}</option>`).join('')
       : `<option value="" style="background:#1a1a2e;color:#fff;">No vendors saved — go to Settings to add</option>`;
@@ -694,8 +687,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // TRACKER
   function renderTracker() {
     const bills=getBills();
-    let open=0,notified=0,completed=0;
-    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; else completed++; notified=open; });
+    let open=0,completed=0;
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; else completed++; });
     const tsOpen=document.getElementById('ts-open'),tsOverdue=document.getElementById('ts-overdue'),tsDone=document.getElementById('ts-done');
     if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=notified; if(tsDone)tsDone.textContent=completed;
 
@@ -785,15 +778,14 @@ document.addEventListener('DOMContentLoaded', function () {
   function resendTexts(id){
     const bill=getBills().find(b=>b.id===id); if(!bill)return;
     const groups=buildVendorGroups(bill.services.map(s=>s.name));
-    // showSendModal handles per-vendor SMS/WA/Copy links and auto-notes
-    showSendModal(bill,groups,function(){ renderTracker(); });
+    showSendModal(bill,groups,function(mode){ renderTracker(); updateHomeStats(); });
   }
 
   // BILL DETAIL
   function viewBill(id){
     const bill=getBills().find(b=>b.id===id); if(!bill)return;
     const status=computeStatus(bill), body=document.getElementById('detail-body');
-    const statusColor=status==='overdue'?'#ff4455':status==='complete'?'#22cc88':'#f59e0b';
+    const statusColor=status==='completed'?'#22cc88':'#60a5fa';
     const svcRows=bill.services.map((s,i)=>{
       const dc=s.status==='in-progress'?'#f59e0b':s.status==='complete'?'#22cc88':'rgba(255,255,255,0.3)';
       return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span style="font-size:10px;color:rgba(255,255,255,0.3);width:16px;">${i+1}.</span><span style="width:8px;height:8px;border-radius:50%;background:${dc};flex-shrink:0;"></span><span style="font-size:12px;color:rgba(255,255,255,0.7);flex:1;">${s.name}</span><span style="font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase;">${s.status.replace('-',' ')}</span></div>`;
