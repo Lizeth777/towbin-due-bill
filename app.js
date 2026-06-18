@@ -176,8 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function computeStatus(bill) {
     if (bill.completedAt) return 'completed';
-    if (bill.notified) return 'scheduled';
-    return 'pending';
+    return 'scheduled'; // all active bills are scheduled
   }
 
   // VENDOR MESSAGE BUILDER
@@ -334,15 +333,61 @@ document.addEventListener('DOMContentLoaded', function () {
     if (det) det.classList.remove('show');
   }
 
-  // HOME STATS
+  // HOME STATS + PHONEBOOK
   function updateHomeStats() {
     const bills=getBills(), today=todayStr();
-    let open=0,notified=0,doneToday=0;
-    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; if(s==='scheduled')notified++; if(b.completedAt&&b.completedAt.startsWith(today))doneToday++; });
-    const soEl=document.getElementById('stat-open'),srEl=document.getElementById('stat-overdue'),stEl=document.getElementById('stat-today'),hcEl=document.getElementById('home-chips');
-    if(soEl)soEl.textContent=open; if(srEl)srEl.textContent=notified; if(stEl)stEl.textContent=doneToday;
-    if(hcEl)hcEl.innerHTML=`<span class="home-chip white">${open} OPEN</span>`;
+    let scheduled=0, doneToday=0;
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')scheduled++; if(b.completedAt&&b.completedAt.startsWith(today))doneToday++; });
+    const srEl=document.getElementById('stat-overdue'), stEl=document.getElementById('stat-today'), hcEl=document.getElementById('home-chips');
+    if(srEl)srEl.textContent=scheduled;
+    if(stEl)stEl.textContent=doneToday;
+    if(hcEl)hcEl.innerHTML='<span class="home-chip white">'+scheduled+' SCHEDULED</span>';
+    renderHomePhonebook();
   }
+
+  function renderHomePhonebook() {
+    const container=document.getElementById('home-phonebook'); if(!container)return;
+    const pb=getPhonebook();
+    container.innerHTML=pb.map((v,idx)=>`
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div>
+          <input type="text" class="home-pb-label" data-idx="${idx}" value="${v.label||''}" placeholder="Vendor name"
+            style="width:100%;background:transparent;border:none;color:rgba(255,255,255,0.8);font-size:11px;font-weight:600;font-family:inherit;outline:none;padding:0;margin-bottom:2px;">
+          <input type="tel" class="home-pb-phone" data-idx="${idx}" value="${v.phone||''}" placeholder="Phone number"
+            style="width:100%;background:transparent;border:none;color:rgba(255,255,255,0.4);font-size:10px;font-family:inherit;outline:none;padding:0;">
+        </div>
+        <button class="home-pb-delete" data-idx="${idx}"
+          style="background:none;border:none;color:rgba(255,68,85,0.5);cursor:pointer;font-size:14px;padding:4px;flex-shrink:0;">✕</button>
+      </div>`).join('');
+
+    container.querySelectorAll('.home-pb-label,.home-pb-phone').forEach(input=>{
+      input.addEventListener('blur',function(){
+        const pb2=getPhonebook(), idx=parseInt(this.dataset.idx);
+        if(this.classList.contains('home-pb-label')) pb2[idx].label=this.value.trim();
+        else pb2[idx].phone=this.value.trim();
+        savePhonebook(pb2);
+      });
+    });
+    container.querySelectorAll('.home-pb-delete').forEach(btn=>{
+      btn.addEventListener('click',function(){
+        const pb2=getPhonebook(); pb2.splice(parseInt(this.dataset.idx),1);
+        savePhonebook(pb2); renderHomePhonebook();
+      });
+    });
+  }
+
+  // Add vendor from home widget
+  const homeAddVendor=document.getElementById('home-add-vendor');
+  if(homeAddVendor)homeAddVendor.addEventListener('click',function(){
+    const pb=getPhonebook();
+    pb.push({id:'pb'+Date.now(),label:'',phone:''});
+    savePhonebook(pb); renderHomePhonebook();
+    setTimeout(()=>{
+      const inputs=document.querySelectorAll('.home-pb-label');
+      if(inputs.length)inputs[inputs.length-1].focus();
+    },50);
+  });
+
   updateHomeStats();
 
   // NAVIGATION
@@ -581,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderTracker() {
     const bills=getBills();
     let open=0,notified=0,completed=0;
-    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; if(s==='scheduled')notified++; if(s==='completed')completed++; });
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; else completed++; notified=open; });
     const tsOpen=document.getElementById('ts-open'),tsOverdue=document.getElementById('ts-overdue'),tsDone=document.getElementById('ts-done');
     if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=notified; if(tsDone)tsDone.textContent=completed;
 
@@ -598,8 +643,8 @@ document.addEventListener('DOMContentLoaded', function () {
     list.innerHTML=filtered.map(b=>{
       const status=computeStatus(b);
       const borderColor=status==='overdue'?'#ff4455':status==='due-soon'||status==='in-progress'?'#f59e0b':status==='complete'?'#22cc88':'rgba(255,255,255,0.15)';
-      const badgeMap={scheduled:['notified','SCHEDULED'],pending:['not-notified','PENDING'],completed:['complete','COMPLETED']};
-      const [badgeClass,badgeLabel]=badgeMap[status]||['not-notified','PENDING'];
+      const badgeMap={scheduled:['notified','SCHEDULED'],completed:['complete','COMPLETED']};
+      const [badgeClass,badgeLabel]=badgeMap[status]||['notified','SCHEDULED'];
       const svcsHtml=b.services.slice(0,4).map(s=>{const cls=s.status==='in-progress'?'in-progress':s.status==='complete'?'complete':'pending';const short=s.name.length>12?s.name.slice(0,12)+'…':s.name;return`<span class="svc-tag ${cls}">${short}</span>`;}).join('');
       const lastNote=b.notes?(b.notes.split('\n').filter(Boolean).pop()||''):'';
       return `<div class="bill-card" data-bill-id="${b.id}" style="border-left:4px solid ${borderColor};">
