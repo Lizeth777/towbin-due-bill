@@ -617,8 +617,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:_vendorMessages[key]; if(!msg)return;
       if(navigator.clipboard){ navigator.clipboard.writeText(msg).then(showCopyToast); }
       else { const ta=document.createElement('textarea');ta.value=msg;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showCopyToast(); }
-      const g=groupList.find(g=>g.key===key);
-      if(g&&!sentVendors.includes(g.label)){sentVendors.push(g.label);doNote();}
+      const sel=document.getElementById('vendor_pick_'+key);
+      const label=sel&&sel.value!==''?sel.options[sel.selectedIndex].text:'vendor';
+      if(!sentVendors.includes(label)){sentVendors.push(label);doNote();}
     };
 
     function showCopyToast(){
@@ -632,38 +633,57 @@ document.addEventListener('DOMContentLoaded', function () {
     groupList.forEach(g=>{ editableMsgs[g.key]=buildMessage(g.label,g.items,bill); });
     window._vendorMessages=editableMsgs;
 
+    const pb = getPhonebook();
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+
+    // Build vendor picker options from phonebook
+    const pbOptions = pb.length
+      ? '<option value="">— Select vendor —</option>' + pb.map((v,i)=>`<option value="${i}" data-phone="${v.phone||''}">${v.label}${v.phone?' · '+v.phone:' (no #)'}</option>`).join('')
+      : '<option value="">No vendors saved — add in Settings</option>';
+
     const vendorRows=groupList.map(g=>{
-      const phone=g.phone||getVendorPhone(g.key),hasPhone=phone&&phone.trim();
-      const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-      // SMS/WA hrefs built dynamically from textarea at send time
-      return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div><div style="font-size:13px;font-weight:700;color:#fff;">${g.label}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">${g.items.join(', ')}</div></div>
-          <div style="font-size:11px;${hasPhone?'color:#22cc88':'color:#ff4455'}">${hasPhone?phone:'No number — Settings'}</div>
+      return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-bottom:12px;">
+        <div style="margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;color:#fff;">${g.items.join(', ')}</div>
         </div>
-        <textarea id="msg_edit_${g.key}" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;color:rgba(255,255,255,0.8);font-size:11px;font-family:inherit;line-height:1.6;resize:vertical;min-height:90px;outline:none;margin-bottom:8px;">${editableMsgs[g.key]}</textarea>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:6px;">SEND TO</label>
+          <select id="vendor_pick_${g.key}" style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;font-family:inherit;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;">
+            ${pbOptions}
+          </select>
+        </div>
+        <textarea id="msg_edit_${g.key}" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;color:rgba(255,255,255,0.8);font-size:12px;font-family:inherit;line-height:1.6;resize:vertical;min-height:80px;outline:none;margin-bottom:10px;box-sizing:border-box;">${editableMsgs[g.key]}</textarea>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          ${hasPhone?`
-          <button onclick="window._sendSMS('${g.key}','${phone}','${g.label}')" style="padding:10px;background:#C8102E;border:none;border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📱 SMS</button>
-          <button onclick="window._sendWA('${g.key}','${phone}','${g.label}')" style="padding:10px;background:#25D366;border:none;border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">💬 WA</button>
-          `:`
-          <div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>
-          <div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>
-          `}
-          <button onclick="window._copyVendorMsg('${g.key}')" style="padding:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📋 COPY</button>
+          <button onclick="window._sendSMS('${g.key}')" style="padding:12px 8px;background:#C8102E;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📱 SMS</button>
+          <button onclick="window._sendWA('${g.key}')" style="padding:12px 8px;background:#25D366;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">💬 WA</button>
+          <button onclick="window._copyVendorMsg('${g.key}')" style="padding:12px 8px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📋 COPY</button>
         </div>
       </div>`;
     }).join('');
 
-    // SMS/WA/Copy now read from editable textarea
-    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-    window._sendSMS=function(key,phone,label){
+    // Get phone from the selected vendor dropdown
+    function getSelectedPhone(key) {
+      const sel = document.getElementById('vendor_pick_'+key);
+      if (!sel || sel.value === '') return null;
+      const opt = sel.options[sel.selectedIndex];
+      return opt ? opt.getAttribute('data-phone') : null;
+    }
+
+    window._sendSMS=function(key){
+      const phone=getSelectedPhone(key);
+      if(!phone){ alert('Please select a vendor first.'); return; }
       const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:window._vendorMessages[key];
+      const sel=document.getElementById('vendor_pick_'+key);
+      const label=sel?sel.options[sel.selectedIndex].text:'vendor';
       window.location.href='sms:'+phone+(isIOS?'&':'?')+'body='+encodeURIComponent(msg);
       window._trackSent(key,label);
     };
-    window._sendWA=function(key,phone,label){
+    window._sendWA=function(key){
+      const phone=getSelectedPhone(key);
+      if(!phone){ alert('Please select a vendor first.'); return; }
       const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:window._vendorMessages[key];
+      const sel=document.getElementById('vendor_pick_'+key);
+      const label=sel?sel.options[sel.selectedIndex].text:'vendor';
       window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
       window._trackSent(key,label);
     };
