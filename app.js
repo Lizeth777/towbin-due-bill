@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if(phoneEl)phoneEl.value      = entry ? entry.phone : '';
     if(delBtn) delBtn.style.display = isEdit ? 'block' : 'none';
 
-    modal.style.display = 'flex';
+    modal.style.display = 'flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
     setTimeout(()=>{ if(nameEl) nameEl.focus(); }, 150);
 
     // Clone to remove old listeners
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     renderView();
-    modal.style.display = 'flex';
+    modal.style.display = 'flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
 
     // Add vendor from view modal
     const addBtn = document.getElementById('phonebook-view-add');
