@@ -102,14 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
     catch(e) { return getDefaultPhonebook(); }
   }
   function getDefaultPhonebook() {
-    return [
-      { id:'pb1', label:'Kia Service',    phone:'' },
-      { id:'pb2', label:'Fam Solutions',  phone:'' },
-      { id:'pb3', label:'Body Shop',      phone:'' },
-      { id:'pb4', label:'Detail',         phone:'' },
-      { id:'pb5', label:'Powder Coating', phone:'' },
-      { id:'pb6', label:'Other Vendor',   phone:'' }
-    ];
+    return []; // No defaults — users add their own vendors with real numbers
   }
   function savePhonebook(pb) {
     localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(pb));
@@ -633,13 +626,13 @@ document.addEventListener('DOMContentLoaded', function () {
     groupList.forEach(g=>{ editableMsgs[g.key]=buildMessage(g.label,g.items,bill); });
     window._vendorMessages=editableMsgs;
 
-    const pb = getPhonebook();
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 
-    // Build vendor picker options from phonebook
+    // Build vendor picker options from phonebook — pulled fresh every time modal opens
+    const pb = getPhonebook();
     const pbOptions = pb.length
-      ? '<option value="">— Select vendor —</option>' + pb.map((v,i)=>`<option value="${i}" data-phone="${v.phone||''}">${v.label}${v.phone?' · '+v.phone:' (no #)'}</option>`).join('')
-      : '<option value="">No vendors saved — add in Settings</option>';
+      ? `<option value="" style="background:#1a1a2e;color:#fff;">— Select vendor —</option>` + pb.map((v,i)=>`<option value="${i}" data-phone="${v.phone||''}" style="background:#1a1a2e;color:#fff;">${v.label}${v.phone?' · '+v.phone:' (no number)'}</option>`).join('')
+      : `<option value="" style="background:#1a1a2e;color:#fff;">No vendors saved — go to Settings to add</option>`;
 
     const vendorRows=groupList.map(g=>{
       return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;margin-bottom:12px;">
@@ -648,7 +641,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
         <div style="margin-bottom:10px;">
           <label style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.35);display:block;margin-bottom:6px;">SEND TO</label>
-          <select id="vendor_pick_${g.key}" style="width:100%;padding:11px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;font-size:14px;font-family:inherit;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;">
+          <select id="vendor_pick_${g.key}" style="width:100%;padding:11px 12px;background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:14px;font-family:inherit;outline:none;cursor:pointer;">
             ${pbOptions}
           </select>
         </div>
