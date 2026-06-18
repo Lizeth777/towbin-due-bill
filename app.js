@@ -542,7 +542,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if(!svcs.length){alert('Select at least one promised work item.');return;}
 
     const newBill={
-      id:'b'+Date.now(),customerName:customer,
+      id:(function(){
+        const d=new Date();
+        const mm=String(d.getMonth()+1).padStart(2,'0');
+        const dd=String(d.getDate()).padStart(2,'0');
+        const yy=String(d.getFullYear()).slice(-2);
+        const bills=getBills();
+        const todayPrefix='DB-'+mm+dd+yy+'-';
+        const todayBills=bills.filter(b=>b.id&&b.id.startsWith(todayPrefix));
+        const seq=String(todayBills.length+1).padStart(4,'0');
+        return todayPrefix+seq;
+      })(),customerName:customer,
       stockNumber:document.getElementById('nb-stock').value.trim(),
       vehicleDescription:buildVehicleDesc(),
       licensePlate:document.getElementById('nb-license').value.trim(),
