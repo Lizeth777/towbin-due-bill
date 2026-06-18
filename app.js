@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ══════════════ PASSWORD GATE ══════════════
   const GATE_KEY    = 'kia_gate_ts';
   const GATE_EXPIRY = 12 * 60 * 60 * 1000; // 12 hours
-  // To change password: get SHA-256 hash of your new password at sha256.online
+  // To change password: get SHA-256 hash at sha256.online and replace CORRECT_HASH below
   const CORRECT_HASH = '8dc4cd568b81bb06592b5791049765e503cf43af74e5bb8c383124a1bf2cda9f';
 
   async function hashInput(str) {
@@ -95,14 +95,38 @@ document.addEventListener('DOMContentLoaded', function () {
     'Other':        { key: 'other_vendor',   label: 'Other Vendor' }
   };
 
-  const VENDOR_KEYS = [
-    { key: 'kia_service',    label: 'Kia Service' },
-    { key: 'fam_solutions',  label: 'Fam Solutions' },
-    { key: 'body_shop',      label: 'Body Shop' },
-    { key: 'detail',         label: 'Detail' },
-    { key: 'powder_coating', label: 'Powder Coating' },
-    { key: 'other_vendor',   label: 'Other Vendor' }
-  ];
+  // VENDOR PHONE BOOK — stored in localStorage as JSON array
+  const PHONEBOOK_KEY = 'kia_phonebook_v1';
+  function getPhonebook() {
+    try { return JSON.parse(localStorage.getItem(PHONEBOOK_KEY)) || getDefaultPhonebook(); }
+    catch(e) { return getDefaultPhonebook(); }
+  }
+  function getDefaultPhonebook() {
+    return [
+      { id:'pb1', label:'Kia Service',    phone:'' },
+      { id:'pb2', label:'Fam Solutions',  phone:'' },
+      { id:'pb3', label:'Body Shop',      phone:'' },
+      { id:'pb4', label:'Detail',         phone:'' },
+      { id:'pb5', label:'Powder Coating', phone:'' },
+      { id:'pb6', label:'Other Vendor',   phone:'' }
+    ];
+  }
+  function savePhonebook(pb) { localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(pb)); }
+  // Keep VENDOR_KEYS for backward compat with VENDOR_MAP phone lookup
+  function getVendorPhone(key) {
+    // First check old localStorage keys
+    const old = localStorage.getItem('vendor_phone_'+key);
+    if (old) return old;
+    // Check phonebook by matching label to vendor map
+    const pb = getPhonebook();
+    const labelMap = {
+      'kia_service':'Kia Service','fam_solutions':'Fam Solutions',
+      'body_shop':'Body Shop','detail':'Detail',
+      'powder_coating':'Powder Coating','other_vendor':'Other Vendor'
+    };
+    const entry = pb.find(e=>e.label===labelMap[key]);
+    return entry ? entry.phone : '';
+  }
 
   const LS_KEY     = 'kia-duebills-v4';
   const INIT_KEY   = 'kia-init-v4';
@@ -148,22 +172,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function getBills()       { try { return JSON.parse(localStorage.getItem(LS_KEY))||[]; } catch(e){ return []; } }
   function saveBills(bills) { localStorage.setItem(LS_KEY,JSON.stringify(bills)); }
-  function getVendorPhone(k){ return localStorage.getItem('vendor_phone_'+k)||''; }
-  function saveVendorPhone(k,p){ localStorage.setItem('vendor_phone_'+k,p.trim()); }
+  // getVendorPhone now handled by phonebook above
 
   function computeStatus(bill) {
-    if (bill.completedAt) return 'complete';
-    if (bill.notified) return 'notified';
-    return 'not-notified';
+    if (bill.completedAt) return 'completed';
+    if (bill.notified) return 'scheduled';
+    return 'pending';
   }
 
   // VENDOR MESSAGE BUILDER
   function buildVendorGroups(serviceNames) {
     const groups={};
+    const pb=getPhonebook();
     serviceNames.forEach(name=>{
       const info=VENDOR_MAP[name];
       if (!info) return;
-      if (!groups[info.key]) groups[info.key]={label:info.label,key:info.key,items:[]};
+      if (!groups[info.key]) {
+        // Get phone from phonebook by matching label
+        const labelMap={kia_service:'Kia Service',fam_solutions:'Fam Solutions',body_shop:'Body Shop',detail:'Detail',powder_coating:'Powder Coating',other_vendor:'Other Vendor'};
+        const pbEntry=pb.find(e=>e.label===labelMap[info.key]);
+        const phone=pbEntry?pbEntry.phone:(localStorage.getItem('vendor_phone_'+info.key)||'');
+        groups[info.key]={label:info.label,key:info.key,items:[],phone};
+      }
       groups[info.key].items.push(name);
     });
     return groups;
@@ -175,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function () {
       'Customer: '+(bill.customerName||'N/A')+(bill.customerPhone?' | '+bill.customerPhone:'')+'\n'+
       'Work Needed: '+items.join(', ')+'\n'+
       'Salesperson: '+(bill.salesperson||'—')+'\n'+
-      'Please schedule ASAP. Call us to coordinate.';
+      'Please schedule ASAP.';
   }
 
   function openSMS(phone, body) {
@@ -308,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateHomeStats() {
     const bills=getBills(), today=todayStr();
     let open=0,notified=0,doneToday=0;
-    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='complete')open++; if(s==='notified')notified++; if(b.completedAt&&b.completedAt.startsWith(today))doneToday++; });
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; if(s==='scheduled')notified++; if(b.completedAt&&b.completedAt.startsWith(today))doneToday++; });
     const soEl=document.getElementById('stat-open'),srEl=document.getElementById('stat-overdue'),stEl=document.getElementById('stat-today'),hcEl=document.getElementById('home-chips');
     if(soEl)soEl.textContent=open; if(srEl)srEl.textContent=notified; if(stEl)stEl.textContent=doneToday;
     if(hcEl)hcEl.innerHTML=`<span class="home-chip white">${open} OPEN</span>`;
@@ -459,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     window._copyVendorMsg=function(key) {
-      const msg=_vendorMessages[key]; if(!msg)return;
+      const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:_vendorMessages[key]; if(!msg)return;
       if(navigator.clipboard){ navigator.clipboard.writeText(msg).then(showCopyToast); }
       else { const ta=document.createElement('textarea');ta.value=msg;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showCopyToast(); }
       const g=groupList.find(g=>g.key===key);
@@ -472,23 +502,46 @@ document.addEventListener('DOMContentLoaded', function () {
       document.body.appendChild(t);setTimeout(()=>document.body.removeChild(t),2000);
     }
 
+    // Build editable messages per vendor
+    const editableMsgs={};
+    groupList.forEach(g=>{ editableMsgs[g.key]=buildMessage(g.label,g.items,bill); });
+    window._vendorMessages=editableMsgs;
+
     const vendorRows=groupList.map(g=>{
-      const phone=getVendorPhone(g.key),hasPhone=phone&&phone.trim();
-      const msg=buildMessage(g.label,g.items,bill);
+      const phone=g.phone||getVendorPhone(g.key),hasPhone=phone&&phone.trim();
       const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-      const smsHref='sms:'+phone+(isIOS?'&':'?')+'body='+encodeURIComponent(msg);
-      const waHref='https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg);
+      // SMS/WA hrefs built dynamically from textarea at send time
       return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div><div style="font-size:13px;font-weight:700;color:#fff;">${g.label}</div><div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">${g.items.join(', ')}</div></div>
-          <div style="font-size:11px;${hasPhone?'color:#22cc88':'color:#ff4455'}">${hasPhone?phone:'No number'}</div>
+          <div style="font-size:11px;${hasPhone?'color:#22cc88':'color:#ff4455'}">${hasPhone?phone:'No number — Settings'}</div>
         </div>
+        <textarea id="msg_edit_${g.key}" style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px;color:rgba(255,255,255,0.8);font-size:11px;font-family:inherit;line-height:1.6;resize:vertical;min-height:90px;outline:none;margin-bottom:8px;">${editableMsgs[g.key]}</textarea>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          ${hasPhone?`<a href="${smsHref}" onclick="window._trackSent('${g.key}','${g.label}')" style="display:flex;align-items:center;justify-content:center;gap:5px;padding:10px;background:#C8102E;border-radius:8px;color:#fff;font-size:10px;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:1px;">📱 SMS</a><a href="${waHref}" target="_blank" onclick="window._trackSent('${g.key}','${g.label}')" style="display:flex;align-items:center;justify-content:center;gap:5px;padding:10px;background:#25D366;border-radius:8px;color:#fff;font-size:10px;font-weight:700;text-decoration:none;text-transform:uppercase;letter-spacing:1px;">💬 WA</a>`:`<div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div><div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>`}
+          ${hasPhone?`
+          <button onclick="window._sendSMS('${g.key}','${phone}','${g.label}')" style="padding:10px;background:#C8102E;border:none;border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📱 SMS</button>
+          <button onclick="window._sendWA('${g.key}','${phone}','${g.label}')" style="padding:10px;background:#25D366;border:none;border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">💬 WA</button>
+          `:`
+          <div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>
+          <div style="padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;color:rgba(255,255,255,0.2);font-size:10px;text-align:center;">No #</div>
+          `}
           <button onclick="window._copyVendorMsg('${g.key}')" style="padding:10px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">📋 COPY</button>
         </div>
       </div>`;
     }).join('');
+
+    // SMS/WA/Copy now read from editable textarea
+    const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    window._sendSMS=function(key,phone,label){
+      const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:window._vendorMessages[key];
+      window.location.href='sms:'+phone+(isIOS?'&':'?')+'body='+encodeURIComponent(msg);
+      window._trackSent(key,label);
+    };
+    window._sendWA=function(key,phone,label){
+      const msg=document.getElementById('msg_edit_'+key)?document.getElementById('msg_edit_'+key).value:window._vendorMessages[key];
+      window.open('https://wa.me/'+phone.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+      window._trackSent(key,label);
+    };
 
     // Build photo section if we have a scanned image
     const scannedImg = window._lastScannedImage;
@@ -528,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderTracker() {
     const bills=getBills();
     let open=0,notified=0,completed=0;
-    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='complete')open++; if(s==='notified')notified++; if(s==='complete')completed++; });
+    bills.forEach(b=>{ const s=computeStatus(b); if(s!=='completed')open++; if(s==='scheduled')notified++; if(s==='completed')completed++; });
     const tsOpen=document.getElementById('ts-open'),tsOverdue=document.getElementById('ts-overdue'),tsDone=document.getElementById('ts-done');
     if(tsOpen)tsOpen.textContent=open; if(tsOverdue)tsOverdue.textContent=notified; if(tsDone)tsDone.textContent=completed;
 
@@ -545,8 +598,8 @@ document.addEventListener('DOMContentLoaded', function () {
     list.innerHTML=filtered.map(b=>{
       const status=computeStatus(b);
       const borderColor=status==='overdue'?'#ff4455':status==='due-soon'||status==='in-progress'?'#f59e0b':status==='complete'?'#22cc88':'rgba(255,255,255,0.15)';
-      const badgeMap={'notified':['notified','NOTIFIED'],'not-notified':['not-notified','NOT NOTIFIED'],complete:['complete','COMPLETE']};
-      const [badgeClass,badgeLabel]=badgeMap[status]||['not-notified','NOT NOTIFIED'];
+      const badgeMap={scheduled:['notified','SCHEDULED'],pending:['not-notified','PENDING'],completed:['complete','COMPLETED']};
+      const [badgeClass,badgeLabel]=badgeMap[status]||['not-notified','PENDING'];
       const svcsHtml=b.services.slice(0,4).map(s=>{const cls=s.status==='in-progress'?'in-progress':s.status==='complete'?'complete':'pending';const short=s.name.length>12?s.name.slice(0,12)+'…':s.name;return`<span class="svc-tag ${cls}">${short}</span>`;}).join('');
       const lastNote=b.notes?(b.notes.split('\n').filter(Boolean).pop()||''):'';
       return `<div class="bill-card" data-bill-id="${b.id}" style="border-left:4px solid ${borderColor};">
@@ -561,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function () {
           <span style="font-size:9px;color:rgba(255,255,255,0.3);font-style:italic;">${b.salesperson||''}</span>
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="status-badge ${badgeClass}">${badgeLabel}</span>
-            ${status!=='complete'?'<button class="action-btn btn-complete" data-action="complete" title="Mark Complete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>':'<button class="action-btn btn-undo" data-action="undo" title="Undo Complete" style="color:#f59e0b;border-color:rgba(245,158,11,0.3);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>'}
+            ${status!=='completed'?'<button class="action-btn btn-complete" data-action="complete" title="Mark Complete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></button>':'<button class="action-btn btn-undo" data-action="undo" title="Undo Complete" style="color:#f59e0b;border-color:rgba(245,158,11,0.3);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>'}
             <button class="action-btn" data-action="view" title="View Detail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             <button class="action-btn" data-action="resend" title="Resend Texts"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
             <button class="action-btn btn-delete" data-action="delete" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
@@ -772,7 +825,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if(!data)return;
     const setField=(id,v)=>{ const el=document.getElementById(id); if(el&&v)el.value=v; };
     const toDate=str=>{ if(!str)return''; const p=str.split('/'); if(p.length===3)return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); return/^\d{4}-\d{2}-\d{2}$/.test(str)?str:str; };
-    setField('nb-date',toDate(data.date)); setField('nb-stock',data.stockNumber); setField('nb-customer',data.customerName);
+    setField('nb-date',toDate(data.date)); setField('nb-stock',data.stockNumber);
+ setField('nb-customer',data.customerName);
     setField('nb-license',data.licensePlate); setField('nb-year',data.year); setField('nb-model',data.model);
     setField('nb-salesperson',data.salesperson); setField('nb-customer-phone',data.customerPhone||''); setField('nb-notes',data.notes);
     if(data.make){const mk=document.getElementById('nb-make');if(mk){const match=Array.from(mk.options).find(o=>o.value.toLowerCase()===data.make.toLowerCase()||o.value.toLowerCase().includes(data.make.toLowerCase())||data.make.toLowerCase().includes(o.value.toLowerCase()));if(match)mk.value=match.value;}}
@@ -784,7 +838,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const fileInput=document.getElementById('file-input'), cameraInput=document.getElementById('camera-input');
   if(fileInput)fileInput.addEventListener('change',function(){if(this.files[0])handleScanFile(this.files[0]);this.value='';});
-  if(cameraInput)cameraInput.addEventListener('change',function(){if(this.files[0])handleScanFile(this.files[0]);this.value='';});
+  if(cameraInput)cameraInput.addEventListener('change',function(){
+    const file=this.files[0]; if(!file)return;
+    // Auto-save camera photo to device immediately
+    const url=URL.createObjectURL(file);
+    const a=document.createElement('a');
+    a.href=url; a.download='due-bill-'+Date.now()+'.jpg';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    handleScanFile(file);
+    this.value='';
+  });
 
   document.getElementById('btn-browse').addEventListener('click',()=>{if(fileInput)fileInput.click();});
   document.getElementById('btn-camera').addEventListener('click',()=>{if(cameraInput)cameraInput.click();});
@@ -798,20 +863,53 @@ document.addEventListener('DOMContentLoaded', function () {
     dropZone.addEventListener('click',()=>{if(fileInput)fileInput.click();});
   }
 
-  // SETTINGS — VENDOR PHONES
+  // SETTINGS — VENDOR PHONEBOOK
   function renderVendorSettings(){
     const container=document.getElementById('vendor-phone-rows'); if(!container)return;
-    container.innerHTML=VENDOR_KEYS.map(v=>{
-      const saved=getVendorPhone(v.key);
-      return `<div style="display:grid;grid-template-columns:140px 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
-        <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.7);">${v.label}</div>
-        <input type="tel" data-vendor-key="${v.key}" class="field-input vendor-phone-input" placeholder="+17025550100" value="${saved||''}" style="font-size:12px;">
-      </div>`;
-    }).join('');
-    container.querySelectorAll('.vendor-phone-input').forEach(input=>{
-      input.addEventListener('blur',function(){saveVendorPhone(this.dataset.vendorKey,this.value);});
+    const pb=getPhonebook();
+    container.innerHTML=pb.map((v,idx)=>`
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <input type="text" class="field-input pb-label" data-idx="${idx}" placeholder="Vendor name" value="${v.label||''}" style="font-size:12px;">
+        <input type="tel" class="field-input pb-phone" data-idx="${idx}" placeholder="+17025550100" value="${v.phone||''}" style="font-size:12px;">
+        <button class="pb-delete" data-idx="${idx}" style="padding:8px 10px;background:rgba(255,68,85,0.1);border:1px solid rgba(255,68,85,0.3);border-radius:8px;color:#ff4455;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>
+      </div>`).join('');
+
+    // Save on blur
+    container.querySelectorAll('.pb-label,.pb-phone').forEach(input=>{
+      input.addEventListener('blur',function(){
+        const pb2=getPhonebook();
+        const idx=parseInt(this.dataset.idx);
+        if(this.classList.contains('pb-label')) pb2[idx].label=this.value.trim();
+        else pb2[idx].phone=this.value.trim();
+        savePhonebook(pb2);
+      });
+    });
+    // Delete vendor
+    container.querySelectorAll('.pb-delete').forEach(btn=>{
+      btn.addEventListener('click',function(){
+        const pb2=getPhonebook();
+        pb2.splice(parseInt(this.dataset.idx),1);
+        savePhonebook(pb2);
+        renderVendorSettings();
+      });
     });
   }
+
+  // Add vendor button
+  const btnAddVendor=document.getElementById('btn-add-vendor');
+  if(btnAddVendor)btnAddVendor.addEventListener('click',function(){
+    const pb=getPhonebook();
+    pb.push({id:'pb'+Date.now(),label:'',phone:''});
+    savePhonebook(pb);
+    renderVendorSettings();
+    // Focus the new label field
+    setTimeout(()=>{
+      const inputs=document.querySelectorAll('.pb-label');
+      if(inputs.length)inputs[inputs.length-1].focus();
+    },50);
+  });
+
+
 
   const toggleSound=document.getElementById('toggle-sound');
   if(toggleSound)toggleSound.addEventListener('click',function(){this.classList.toggle('on');soundEnabled=this.classList.contains('on');});
