@@ -24,12 +24,10 @@
 <div id="password-gate" style="position:fixed;inset:0;background:#080810;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0;">
   <div style="position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 50%,rgba(90,50,180,0.18) 0%,rgba(60,20,130,0.08) 40%,transparent 70%);pointer-events:none;"></div>
   <div style="position:relative;z-index:1;width:min(90vw,360px);display:flex;flex-direction:column;align-items:center;gap:24px;">
-    <!-- Branding -->
     <div style="text-align:center;">
       <div style="font-style:italic;font-weight:900;font-size:32px;color:#fff;letter-spacing:2px;">KIA</div>
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:4px;color:rgba(255,255,255,0.35);margin-top:4px;">TOWBIN DEALERSHIP PORTAL</div>
     </div>
-    <!-- Card -->
     <div style="width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:28px;">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:3px;color:rgba(255,255,255,0.3);margin-bottom:16px;">ACCESS REQUIRED</div>
       <div style="position:relative;margin-bottom:10px;">
@@ -62,14 +60,10 @@
       <span class="clock" id="clock">00:00</span>
       <span class="kia-divider"></span>
       <div class="status-icons" id="status-icons-right">
-        <!-- Signal dots -->
         <svg viewBox="0 0 14 14" fill="currentColor"><circle cx="3" cy="10" r="1.5"/><circle cx="7" cy="7" r="1.5"/><circle cx="11" cy="4" r="1.5"/></svg>
-        <!-- Bars -->
         <svg viewBox="0 0 14 14" fill="currentColor"><rect x="1" y="9" width="3" height="4" rx="0.5"/><rect x="5.5" y="5" width="3" height="8" rx="0.5"/><rect x="10" y="1" width="3" height="12" rx="0.5"/></svg>
-        <!-- Battery -->
         <svg viewBox="0 0 16 14" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="3" width="12" height="8" rx="1.5"/><rect x="13" y="5.5" width="2" height="3" rx="0.5" fill="currentColor" stroke="none"/></svg>
       </div>
-      <!-- Sync badge injected by JS -->
     </div>
   </div>
 
@@ -83,13 +77,10 @@
         <div id="home-chips"></div>
       </div>
       <div class="home-body">
-
-        <!-- Left stats widget -->
         <div class="left-widget">
           <span class="kia-wordmark">KIA</span>
           <span class="kia-portal">DEALERSHIP PORTAL</span>
           <div class="widget-divider"></div>
-          <!-- VENDOR PHONEBOOK — buttons only, modals handle the rest -->
           <div style="margin-bottom:12px;">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.87a16 16 0 0 0 6 6l.94-.94a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.03z"/></svg>
@@ -114,38 +105,28 @@
           <div class="widget-sync" id="widget-sync">Last sync: just now</div>
         </div>
 
-        <!-- 2×2 tile grid -->
         <div class="tile-grid">
           <div class="app-tile tile-new" id="tile-new-bill">
-            <div class="tile-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            </div>
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
             <div class="tile-label">NEW BILL</div>
             <div class="tile-sub">Create work order</div>
           </div>
           <div class="app-tile tile-tracker" id="tile-tracker">
-            <div class="tile-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg>
-            </div>
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/></svg></div>
             <div class="tile-label">TRACKER</div>
             <div class="tile-sub">View due bills</div>
           </div>
           <div class="app-tile tile-scan" id="tile-scan">
-            <div class="tile-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
-            </div>
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
             <div class="tile-label">SCAN</div>
             <div class="tile-sub">Upload document</div>
           </div>
           <div class="app-tile tile-settings" id="tile-settings">
-            <div class="tile-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M14.83 9.17a4 4 0 0 1 0 5.66M9.17 14.83a4 4 0 0 1 0-5.66"/></svg>
-            </div>
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M14.83 9.17a4 4 0 0 1 0 5.66M9.17 14.83a4 4 0 0 1 0-5.66"/></svg></div>
             <div class="tile-label">SETTINGS</div>
             <div class="tile-sub">Preferences</div>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -162,7 +143,6 @@
       </div>
       <div style="flex:1;overflow-y:auto;padding:16px 20px;">
 
-        <!-- Scan success flash -->
         <div id="scan-success-flash" class="scan-flash">
           <div style="display:flex;align-items:center;gap:8px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22cc88" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -191,28 +171,48 @@
             <label class="field-label">MAKE</label>
             <select class="field-select" id="nb-make">
               <option value="" disabled selected>Select Make</option>
-              <option value="Kia">Kia</option>
-              <option value="Hyundai">Hyundai</option>
-              <option value="Genesis">Genesis</option>
-              <option value="Toyota">Toyota</option>
-              <option value="Honda">Honda</option>
-              <option value="Ford">Ford</option>
-              <option value="Chevrolet">Chevrolet</option>
-              <option value="Nissan">Nissan</option>
-              <option value="BMW">BMW</option>
-              <option value="Mercedes-Benz">Mercedes-Benz</option>
-              <option value="Volkswagen">Volkswagen</option>
-              <option value="Subaru">Subaru</option>
-              <option value="Mazda">Mazda</option>
-              <option value="Dodge">Dodge</option>
-              <option value="Jeep">Jeep</option>
-              <option value="Ram">Ram</option>
-              <option value="GMC">GMC</option>
-              <option value="Cadillac">Cadillac</option>
-              <option value="Lexus">Lexus</option>
               <option value="Acura">Acura</option>
-              <option value="Infiniti">Infiniti</option>
+              <option value="Alfa Romeo">Alfa Romeo</option>
+              <option value="Aston Martin">Aston Martin</option>
+              <option value="Audi">Audi</option>
+              <option value="Bentley">Bentley</option>
+              <option value="BMW">BMW</option>
+              <option value="Buick">Buick</option>
+              <option value="Cadillac">Cadillac</option>
+              <option value="Chevrolet">Chevrolet</option>
+              <option value="Chrysler">Chrysler</option>
+              <option value="Dodge">Dodge</option>
+              <option value="Ferrari">Ferrari</option>
+              <option value="Fiat">Fiat</option>
+              <option value="Ford">Ford</option>
+              <option value="Genesis">Genesis</option>
+              <option value="GMC">GMC</option>
+              <option value="Honda">Honda</option>
+              <option value="Hyundai">Hyundai</option>
+              <option value="INFINITI">INFINITI</option>
+              <option value="Jaguar">Jaguar</option>
+              <option value="Jeep">Jeep</option>
+              <option value="Kia">Kia</option>
+              <option value="Lamborghini">Lamborghini</option>
+              <option value="Land Rover">Land Rover</option>
+              <option value="Lexus">Lexus</option>
+              <option value="Lincoln">Lincoln</option>
+              <option value="Maserati">Maserati</option>
+              <option value="Mazda">Mazda</option>
+              <option value="McLaren">McLaren</option>
+              <option value="Mercedes-Benz">Mercedes-Benz</option>
+              <option value="MINI">MINI</option>
+              <option value="Mitsubishi">Mitsubishi</option>
+              <option value="Nissan">Nissan</option>
+              <option value="Porsche">Porsche</option>
+              <option value="Ram">Ram</option>
+              <option value="Rivian">Rivian</option>
+              <option value="Rolls-Royce">Rolls-Royce</option>
+              <option value="Subaru">Subaru</option>
               <option value="Tesla">Tesla</option>
+              <option value="Toyota">Toyota</option>
+              <option value="Volkswagen">Volkswagen</option>
+              <option value="Volvo">Volvo</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -243,7 +243,7 @@
           <button type="button" class="work-btn" data-work="Powder Wheels"><span class="work-label">Powder Wheels</span><span class="work-sub">Powder Coating</span></button>
           <button type="button" class="work-btn" data-work="Other"><span class="work-label">Other</span><span class="work-sub">Other Vendor</span></button>
         </div>
-        <!-- MESSAGE PREVIEW -->
+
         <div style="margin-bottom:12px;">
           <div class="section-hdr" style="margin-top:16px;">VENDOR MESSAGE PREVIEW</div>
           <div id="msg-preview" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:12px;font-size:10px;font-family:'SF Mono','Fira Code',monospace;white-space:pre-wrap;line-height:1.7;min-height:60px;color:rgba(255,255,255,0.2);">Select promised work above to preview the vendor messages.</div>
@@ -278,7 +278,6 @@
       <div style="padding:8px 14px 0;flex-shrink:0;"><input type="text" id="tracker-search" placeholder="Search by name or stock #..." style="width:100%;padding:9px 14px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:12px;font-family:inherit;outline:none;" oninput="renderTracker()"></div>
       <div class="bill-list" id="bill-list"></div>
 
-      <!-- Detail overlay -->
       <div class="detail-overlay" id="detail-overlay">
         <div class="view-header" style="background:rgba(200,16,46,0.12);border-bottom:1px solid rgba(200,16,46,0.2);">
           <div class="vh-left">
@@ -320,17 +319,11 @@
         <input type="file" id="file-input" accept="image/*,application/pdf" style="display:none;">
         <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;">
         <div id="scan-results" style="margin-top:16px;"></div>
-
-        <!-- Scan info note -->
         <div style="margin-top:20px;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">
           <div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:6px;">AI SCAN NOTE</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6;">
-            AI scanning requires a Google Apps Script URL configured in Settings. Upload a photo and the fields will auto-fill in the New Bill form.
-          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);line-height:1.6;">AI scanning requires a Google Apps Script URL configured in Settings. Upload a photo and the fields will auto-fill in the New Bill form.</div>
         </div>
       </div>
-
-      <!-- Scanning overlay -->
       <div id="scan-overlay" style="display:none;position:absolute;inset:0;background:rgba(8,8,15,0.95);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
         <div style="width:200px;height:2px;background:rgba(255,255,255,0.08);border-radius:1px;overflow:hidden;position:relative;">
           <div style="position:absolute;height:100%;width:60px;background:linear-gradient(90deg,transparent,#C8102E,transparent);animation:scan-sweep-h 1.2s ease-in-out infinite;"></div>
@@ -353,13 +346,11 @@
       </div>
       <div style="flex:1;overflow-y:auto;padding:16px 20px;">
 
-        <!-- VENDOR PHONEBOOK -->
         <div class="settings-section-title" style="margin-top:20px;">VENDOR PHONE BOOK</div>
         <p style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:12px;line-height:1.5;">Add, edit or remove vendors. Numbers save automatically when you tap away.</p>
         <div id="vendor-phone-rows"></div>
         <button id="btn-add-vendor" style="margin-top:10px;width:100%;padding:10px;background:rgba(200,16,46,0.1);border:1px solid rgba(200,16,46,0.3);border-radius:8px;color:#ff6677;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:inherit;">+ ADD VENDOR</button>
 
-        <!-- SHEETS CONNECTION -->
         <div class="settings-section-title">SHEETS CONNECTION</div>
         <div style="margin-bottom:16px;">
           <div class="field-label">GOOGLE APPS SCRIPT URL</div>
@@ -376,16 +367,12 @@
         </div>
         <div style="height:1px;background:rgba(255,255,255,0.06);margin-bottom:16px;"></div>
 
-        <!-- DISPLAY -->
         <div class="settings-section-title">DISPLAY</div>
         <div class="settings-item">
           <div><div class="si-label">Sound Effects</div><div class="si-sub">UI interaction sounds</div></div>
           <button class="toggle on" id="toggle-sound"></button>
         </div>
 
-
-
-        <!-- DATA -->
         <div class="settings-section-title" style="margin-top:20px;">DATA</div>
         <div class="settings-item">
           <div><div class="si-label">Export Due Bills</div><div class="si-sub">Download as JSON file</div></div>
@@ -396,18 +383,16 @@
           <button class="settings-btn danger" id="btn-clear">CLEAR ALL</button>
         </div>
 
-        <!-- SESSION -->
         <div class="settings-section-title" style="margin-top:20px;">SESSION</div>
         <div class="settings-item">
           <div><div class="si-label">Sign Out</div><div class="si-sub">Clears your 12-hour session</div></div>
           <button class="settings-btn danger" onclick="signOut()">SIGN OUT</button>
         </div>
 
-        <!-- ABOUT -->
         <div class="settings-section-title" style="margin-top:20px;">ABOUT</div>
         <div style="padding:10px 0;">
           <div style="font-size:12px;color:#fff;">Kia Due Bill Tracker</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px;">v2.1 · Built for Towbin Kia</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px;">v2.5 · Built for Towbin Kia</div>
           <div style="font-size:9px;color:rgba(255,255,255,0.2);margin-top:4px;">Henderson, NV</div>
         </div>
 
@@ -484,7 +469,6 @@
 
 <script src="app.js"></script>
 <script>
-  // Unregister all service workers so updates always come through immediately
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => {
       regs.forEach(reg => reg.unregister());
