@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
           o.value.toLowerCase() === v.make.toLowerCase()
         );
         if (opt) makeEl.value = opt.value;
-        else makeEl.value = 'Kia';
+        else makeEl.value = '';
       }
 
       if (stockEl) {
