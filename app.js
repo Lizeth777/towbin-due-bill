@@ -1,6 +1,8 @@
 /* ============================================================
-   KIA DUE BILL TRACKER — app.js v2.1
+   KIA DUE BILL TRACKER — app.js v2.3
    Towbin Kia · Telluride UI + Full Send/Vendor/Note Functionality
+   + Stock Number Auto-Lookup via Towbin Kia Inventory API
+   + Vendor outreach always logged to Google Sheet on bill save
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -38,7 +40,6 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
       hash = await hashInput(pwd);
     } catch(e) {
-      // crypto.subtle unavailable (file:// protocol) — hash manually
       hash = '';
     }
     if (hash === CORRECT_HASH) {
@@ -82,6 +83,92 @@ document.addEventListener('DOMContentLoaded', function () {
       const i=document.getElementById('gate-input'); if(i){i.value='';i.focus();}
     }
   }, 60000);
+
+  // ══════════════ STOCK LOOKUP ══════════════
+  let _inventoryCache = null;
+  let _inventoryCacheTime = 0;
+  const INVENTORY_TTL = 10 * 60 * 1000; // 10 minutes
+
+  async function getInventory() {
+    const now = Date.now();
+    if (_inventoryCache && (now - _inventoryCacheTime) < INVENTORY_TTL) {
+      return _inventoryCache;
+    }
+    try {
+      const res = await fetch(
+        'https://websites-search.api.carscommerce.inc/api/v1/listings/5382487/search',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            page: 1,
+            perPage: 1000,
+            filters: { status: ['publish', 'modified', 'pend-sale'] },
+            requestedFields: ['stock', 'year', 'make', 'model', 'trim', 'type']
+          })
+        }
+      );
+      const data = await res.json();
+      _inventoryCache = (data && data.data && data.data.listings) ? data.data.listings : [];
+      _inventoryCacheTime = Date.now();
+      return _inventoryCache;
+    } catch(e) {
+      return [];
+    }
+  }
+
+  async function lookupStock(stockNumber) {
+    if (!stockNumber || stockNumber.length < 3) return;
+
+    // Show a subtle loading indicator on the stock field
+    const stockEl = document.getElementById('nb-stock');
+    if (stockEl) stockEl.style.borderColor = 'rgba(245,158,11,0.6)';
+
+    const inventory = await getInventory();
+    const match = inventory.find(v =>
+      String(v.stock).toUpperCase() === stockNumber.toUpperCase()
+    );
+
+    if (stockEl) stockEl.style.borderColor = '';
+
+    if (!match) {
+      // No match found — flash red briefly then reset
+      if (stockEl) {
+        stockEl.style.borderColor = 'rgba(255,68,85,0.5)';
+        setTimeout(() => { if(stockEl) stockEl.style.borderColor = ''; }, 1500);
+      }
+      return;
+    }
+
+    // Match found — fill in vehicle fields
+    const yearEl  = document.getElementById('nb-year');
+    const makeEl  = document.getElementById('nb-make');
+    const modelEl = document.getElementById('nb-model');
+
+    if (yearEl && match.year)   yearEl.value  = match.year;
+    if (modelEl && match.model) modelEl.value = match.model + (match.trim ? ' ' + match.trim : '');
+
+    if (makeEl && match.make) {
+      const opt = Array.from(makeEl.options).find(o =>
+        o.value.toLowerCase() === match.make.toLowerCase()
+      );
+      if (opt) makeEl.value = opt.value;
+      else makeEl.value = 'Kia'; // fallback — it's all Kia inventory
+    }
+
+    // Flash green on stock field to confirm match
+    if (stockEl) {
+      stockEl.style.borderColor = 'rgba(34,200,136,0.7)';
+      stockEl.style.background  = 'rgba(34,200,136,0.06)';
+      setTimeout(() => {
+        if(stockEl) { stockEl.style.borderColor = ''; stockEl.style.background = ''; }
+      }, 2000);
+    }
+
+    updateMessagePreview();
+    beep(700, 0.05);
+  }
+
   const VENDOR_MAP = {
     'GPS':          { key: 'kia_service',    label: 'Kia Service' },
     'Red Alert':    { key: 'kia_service',    label: 'Kia Service' },
@@ -102,11 +189,10 @@ document.addEventListener('DOMContentLoaded', function () {
     catch(e) { return getDefaultPhonebook(); }
   }
   function getDefaultPhonebook() {
-    return []; // No defaults — users add their own vendors with real numbers
+    return [];
   }
   function savePhonebook(pb) {
     localStorage.setItem(PHONEBOOK_KEY, JSON.stringify(pb));
-    // Push to Sheets in background
     pushPhonebookToSheets(pb);
   }
 
@@ -129,12 +215,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     } catch(e) {}
   }
-  // Keep VENDOR_KEYS for backward compat with VENDOR_MAP phone lookup
+
   function getVendorPhone(key) {
-    // First check old localStorage keys
     const old = localStorage.getItem('vendor_phone_'+key);
     if (old) return old;
-    // Check phonebook by matching label to vendor map
     const pb = getPhonebook();
     const labelMap = {
       'kia_service':'Kia Service','fam_solutions':'Fam Solutions',
@@ -150,7 +234,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const GSHEET_KEY = 'kia-gsheet-url';
 
   const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxiUQ0YsGOMECs0N5P9DaUEivwmwaDCcCGFQRsVf1jM_a5ENk1sFl5vy72GRuniv8_s/exec';
-  // ALWAYS force hardcoded URL — clears any previously saved URL on every load
   localStorage.removeItem(GSHEET_KEY);
   localStorage.setItem(GSHEET_KEY, DEFAULT_SCRIPT_URL);
   let sheetScriptUrl = DEFAULT_SCRIPT_URL;
@@ -192,7 +275,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function getBills()       { try { return JSON.parse(localStorage.getItem(LS_KEY))||[]; } catch(e){ return []; } }
   function saveBills(bills) { localStorage.setItem(LS_KEY,JSON.stringify(bills)); }
-  // getVendorPhone now handled by phonebook above
 
   function computeStatus(bill) {
     if (bill.completedAt && bill.completedAt !== '' && bill.completedAt !== 'null') return 'completed';
@@ -207,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const info=VENDOR_MAP[name];
       if (!info) return;
       if (!groups[info.key]) {
-        // Get phone from phonebook by matching label
         const labelMap={kia_service:'Kia Service',fam_solutions:'Fam Solutions',body_shop:'Body Shop',detail:'Detail',powder_coating:'Powder Coating',other_vendor:'Other Vendor'};
         const pbEntry=pb.find(e=>e.label===labelMap[info.key]);
         const phone=pbEntry?pbEntry.phone:(localStorage.getItem('vendor_phone_'+info.key)||'');
@@ -261,7 +342,6 @@ document.addEventListener('DOMContentLoaded', function () {
     updateSyncDot('syncing');
     const r=await sheetGet({action:'getAll'});
     if (r&&r.success&&Array.isArray(r.bills)){
-      // Normalize dates from Sheets — convert ISO strings to YYYY-MM-DD
       r.bills.forEach(function(b){
         if(b.saleDate && b.saleDate.length > 10) b.saleDate = b.saleDate.substring(0,10);
         if(b.completedAt && b.completedAt === 'null') b.completedAt = null;
@@ -290,9 +370,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function showPushToast(msg) {
-    // Don't show on every keystroke — only on real failures
     const existing = document.getElementById('push-toast');
-    if (existing) return; // already showing
+    if (existing) return;
     const t = document.createElement('div');
     t.id = 'push-toast';
     t.textContent = msg;
@@ -334,8 +413,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   updateWidgetDate();
 
-  // SEED DATA
-  // No seed data — clean slate for all users
   function seedData() { localStorage.setItem(INIT_KEY,'1'); }
   seedData();
 
@@ -392,7 +469,6 @@ document.addEventListener('DOMContentLoaded', function () {
     modal.style.display = 'flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
     setTimeout(()=>{ if(nameEl) nameEl.focus(); }, 150);
 
-    // Clone to remove old listeners
     const newSave = saveBtn.cloneNode(true);
     saveBtn.parentNode.replaceChild(newSave, saveBtn);
     newSave.addEventListener('click', function() {
@@ -451,7 +527,6 @@ document.addEventListener('DOMContentLoaded', function () {
     renderView();
     modal.style.display = 'flex'; modal.style.alignItems='center'; modal.style.justifyContent='center';
 
-    // Add vendor from view modal
     const addBtn = document.getElementById('phonebook-view-add');
     if(addBtn) {
       const newAdd = addBtn.cloneNode(true);
@@ -484,7 +559,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // NEW BILL FORM
   function initNewBillForm() {
     if (_scanFilling){ _scanFilling=false; return; }
-    window._lastScannedImage = null; // clear photo when starting fresh
+    window._lastScannedImage = null;
     const dateEl=document.getElementById('nb-date'); if(dateEl)dateEl.value=todayStr();
     ['nb-stock','nb-customer','nb-license','nb-model','nb-salesperson','nb-customer-phone','nb-notes'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=''; });
     const yearEl=document.getElementById('nb-year'); if(yearEl)yearEl.value=new Date().getFullYear();
@@ -529,6 +604,14 @@ document.addEventListener('DOMContentLoaded', function () {
     previewEl.textContent=preview.trim(); previewEl.style.color='rgba(255,255,255,0.6)';
   }
 
+  // Wire up stock field blur to trigger lookup
+  const _stockEl = document.getElementById('nb-stock');
+  if (_stockEl) {
+    _stockEl.addEventListener('blur', function() {
+      lookupStock(this.value.trim());
+    });
+  }
+
   ['nb-stock','nb-customer','nb-salesperson','nb-customer-phone','nb-year','nb-model'].forEach(id=>{
     const el=document.getElementById(id); if(el)el.addEventListener('input',updateMessagePreview);
   });
@@ -567,10 +650,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const groups=buildVendorGroups(svcs);
 
     showSendModal(newBill,groups,function(mode){
-      if(mode==='cancelled') return; // X pressed — do nothing, bill not saved
-      // Save bill only when Done — Close is pressed
+      if(mode==='cancelled') return;
       newBill.notified = true;
       const bills=getBills(); bills.unshift(newBill); saveBills(bills); pushToSheets('add',newBill);
+      addNoteToBill(newBill.id, 'Vendor(s) contacted to set up appointment with customer.');
       beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
       initNewBillForm(); showView('tracker');
     });
@@ -611,7 +694,6 @@ document.addEventListener('DOMContentLoaded', function () {
       document.body.appendChild(t);setTimeout(()=>document.body.removeChild(t),2000);
     }
 
-    // Build editable messages per vendor
     const editableMsgs={};
     groupList.forEach(g=>{ editableMsgs[g.key]=buildMessage(g.label,g.items,bill); });
     window._vendorMessages=editableMsgs;
@@ -642,7 +724,6 @@ document.addEventListener('DOMContentLoaded', function () {
       </div>`;
     }).join('');
 
-    // Get phone from the selected vendor dropdown
     function getSelectedPhone(key) {
       const sel = document.getElementById('vendor_pick_'+key);
       if (!sel || sel.value === '') return null;
@@ -669,7 +750,6 @@ document.addEventListener('DOMContentLoaded', function () {
       window._trackSent(key,label);
     };
 
-    // Build photo section if we have a scanned image
     const scannedImg = window._lastScannedImage;
     const photoSection = scannedImg ? `
       <div style="margin-bottom:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;text-align:center;">
@@ -685,7 +765,6 @@ document.addEventListener('DOMContentLoaded', function () {
       a.href = window._lastScannedImage.dataUrl;
       a.download = 'due-bill-' + (bill.stockNumber || Date.now()) + '.jpg';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      // Flash the button green
       const btn = document.querySelector('[onclick="window._saveScanPhoto()"]');
       if(btn){ btn.textContent='✓ SAVED!'; btn.style.background='rgba(34,200,136,0.2)'; btn.style.borderColor='#22cc88'; btn.style.color='#22cc88'; setTimeout(()=>{ btn.textContent='⬇ SAVE PHOTO TO CAMERA ROLL'; btn.style.background='rgba(255,255,255,0.08)'; btn.style.borderColor='rgba(255,255,255,0.15)'; btn.style.color='#fff'; },2000); }
     };
@@ -781,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function undoComplete(id){
     const bills=getBills(), bill=bills.find(b=>b.id===id); if(!bill)return;
     bill.completedAt=null;
-    bill.notified=true; // keep notified — vendor was still texted
+    bill.notified=true;
     bill.services.forEach(s=>{s.status='pending';s.completedAt=null;});
     saveBills(bills); pushToSheets('update',bill);
     addNoteToBill(id,'Marked incomplete — reopened.');
@@ -932,12 +1011,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const result = await res.json();
         if(!result.success) throw new Error(result.error || 'Scan failed');
         if(scanOverlay)scanOverlay.style.display='none';
-        // Store the scanned image for attaching in send modal
         window._lastScannedImage = { dataUrl: e.target.result, mimeType };
         _scanFilling=true; showView('new-bill'); setTimeout(()=>fillNewBillForm(result.data),80);
       } catch(err){
         if(scanOverlay)scanOverlay.style.display='none';
-        // Still store image even if AI scan failed — staff filled form manually
         window._lastScannedImage = { dataUrl: e.target.result, mimeType };
         if(resultsEl)resultsEl.innerHTML=`<div style="padding:12px;background:rgba(255,68,85,0.1);border:1px solid rgba(255,68,85,0.3);border-radius:8px;font-size:11px;color:#ff8899;line-height:1.6;"><strong>Scan failed:</strong> ${err.message}<br><br>Fill in the form manually and hit ISSUE DUE BILL to send texts.</div>`;
         setTimeout(()=>{ _scanFilling=false; showView('new-bill'); },2500);
@@ -952,13 +1029,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const setField=(id,v)=>{ const el=document.getElementById(id); if(el&&v)el.value=v; };
     const toDate=str=>{ if(!str)return''; const p=str.split('/'); if(p.length===3)return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); return/^\d{4}-\d{2}-\d{2}$/.test(str)?str:str; };
     setField('nb-date',toDate(data.date)); setField('nb-stock',data.stockNumber);
- setField('nb-customer',data.customerName);
+    setField('nb-customer',data.customerName);
     setField('nb-license',data.licensePlate); setField('nb-year',data.year); setField('nb-model',data.model);
     setField('nb-salesperson',data.salesperson); setField('nb-customer-phone',data.customerPhone||''); setField('nb-notes',data.notes);
     if(data.make){const mk=document.getElementById('nb-make');if(mk){const match=Array.from(mk.options).find(o=>o.value.toLowerCase()===data.make.toLowerCase()||o.value.toLowerCase().includes(data.make.toLowerCase())||data.make.toLowerCase().includes(o.value.toLowerCase()));if(match)mk.value=match.value;}}
     document.querySelectorAll('#work-grid .work-btn').forEach(btn=>btn.classList.remove('work-selected'));
     if(data.services&&Array.isArray(data.services)){document.querySelectorAll('#work-grid .work-btn').forEach(btn=>{const label=(btn.getAttribute('data-work')||'').toLowerCase();if(data.services.some(svc=>{ const s=svc.toLowerCase();return s.includes(label)||label.includes(s);}))btn.classList.add('work-selected');});}
     const flash=document.getElementById('scan-success-flash');if(flash){flash.classList.add('show');setTimeout(()=>flash.classList.remove('show'),4000);}
+
+    // After scan fills form, also try stock lookup to fill vehicle if not already present
+    if(data.stockNumber) {
+      setTimeout(()=>lookupStock(data.stockNumber), 200);
+    }
+
     updateMessagePreview(); beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
   }
 
@@ -966,7 +1049,6 @@ document.addEventListener('DOMContentLoaded', function () {
   if(fileInput)fileInput.addEventListener('change',function(){if(this.files[0])handleScanFile(this.files[0]);this.value='';});
   if(cameraInput)cameraInput.addEventListener('change',function(){
     const file=this.files[0]; if(!file)return;
-    // Auto-save camera photo to device immediately
     const url=URL.createObjectURL(file);
     const a=document.createElement('a');
     a.href=url; a.download='due-bill-'+Date.now()+'.jpg';
@@ -1000,7 +1082,6 @@ document.addEventListener('DOMContentLoaded', function () {
         <button class="pb-delete" data-idx="${idx}" style="padding:8px 10px;background:rgba(255,68,85,0.1);border:1px solid rgba(255,68,85,0.3);border-radius:8px;color:#ff4455;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>
       </div>`).join('');
 
-    // Save on blur
     container.querySelectorAll('.pb-label,.pb-phone').forEach(input=>{
       input.addEventListener('blur',function(){
         const pb2=getPhonebook();
@@ -1010,7 +1091,6 @@ document.addEventListener('DOMContentLoaded', function () {
         savePhonebook(pb2);
       });
     });
-    // Delete vendor
     container.querySelectorAll('.pb-delete').forEach(btn=>{
       btn.addEventListener('click',function(){
         const pb2=getPhonebook();
@@ -1021,15 +1101,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Add vendor button
   const btnAddVendor=document.getElementById('btn-add-vendor');
   if(btnAddVendor)btnAddVendor.addEventListener('click',()=>openPhonebookModal());
 
-
-
   const toggleSound=document.getElementById('toggle-sound');
   if(toggleSound)toggleSound.addEventListener('click',function(){this.classList.toggle('on');soundEnabled=this.classList.contains('on');});
-
 
   const btnExport=document.getElementById('btn-export');
   if(btnExport)btnExport.addEventListener('click',function(){
@@ -1102,5 +1178,8 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  // Pre-warm inventory cache in background so first lookup is instant
+  setTimeout(()=>getInventory(), 3000);
 
 }); // end DOMContentLoaded
