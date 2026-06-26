@@ -1,5 +1,5 @@
 /* ============================================================
-   KIA DUE BILL TRACKER — app.js v2.4
+   KIA DUE BILL TRACKER — app.js v2.5
    Towbin Kia · Telluride UI + Full Send/Vendor/Note Functionality
    + Stock Number Auto-Lookup via Towbin Kia Inventory API
    + Vendor outreach always logged to Google Sheet on bill save
@@ -85,76 +85,62 @@ document.addEventListener('DOMContentLoaded', function () {
   }, 60000);
 
   // ══════════════ STOCK LOOKUP ══════════════
-  let _inventoryCache = null;
-  let _inventoryCacheTime = 0;
-  const INVENTORY_TTL = 10 * 60 * 1000; // 10 minutes
-
-  async function getInventory() {
-    const now = Date.now();
-    if (_inventoryCache && (now - _inventoryCacheTime) < INVENTORY_TTL) {
-      return _inventoryCache;
-    }
-    try {
-      const res = await fetch('https://towbin-inventory.lizethmadrigal33.workers.dev');
-      const data = await res.json();
-      _inventoryCache = (data && data.listings) ? data.listings : [];
-      _inventoryCacheTime = Date.now();
-      return _inventoryCache;
-    } catch(e) {
-      return [];
-    }
-  }
+  const WORKER_URL = 'https://towbin-inventory.lizethmadrigal33.workers.dev';
+  let _lookupTimer = null;
 
   async function lookupStock(stockNumber) {
     if (!stockNumber || stockNumber.length < 3) return;
 
-    // Show a subtle loading indicator on the stock field
     const stockEl = document.getElementById('nb-stock');
-    if (stockEl) stockEl.style.borderColor = 'rgba(245,158,11,0.6)';
+    if (stockEl) { stockEl.style.borderColor = 'rgba(245,158,11,0.6)'; stockEl.style.background = ''; }
 
-    const inventory = await getInventory();
-    const match = inventory.find(v =>
-      String(v.stock).toUpperCase() === stockNumber.toUpperCase()
-    );
+    try {
+      const res = await fetch(WORKER_URL + '?stock=' + encodeURIComponent(stockNumber));
+      const data = await res.json();
 
-    if (stockEl) stockEl.style.borderColor = '';
+      if (stockEl) stockEl.style.borderColor = '';
 
-    if (!match) {
-      // No match found — flash red briefly then reset
-      if (stockEl) {
-        stockEl.style.borderColor = 'rgba(255,68,85,0.5)';
-        setTimeout(() => { if(stockEl) stockEl.style.borderColor = ''; }, 1500);
+      if (!data.success || !data.vehicle) {
+        if (stockEl) {
+          stockEl.style.borderColor = 'rgba(255,68,85,0.5)';
+          setTimeout(() => { if(stockEl) stockEl.style.borderColor = ''; }, 1500);
+        }
+        return;
       }
-      return;
+
+      const v = data.vehicle;
+      const yearEl  = document.getElementById('nb-year');
+      const makeEl  = document.getElementById('nb-make');
+      const modelEl = document.getElementById('nb-model');
+
+      if (yearEl  && v.year)  yearEl.value  = v.year;
+      if (modelEl && v.model) modelEl.value = v.model + (v.trim ? ' ' + v.trim : '');
+      if (makeEl  && v.make) {
+        const opt = Array.from(makeEl.options).find(o =>
+          o.value.toLowerCase() === v.make.toLowerCase()
+        );
+        if (opt) makeEl.value = opt.value;
+        else makeEl.value = 'Kia';
+      }
+
+      if (stockEl) {
+        stockEl.style.borderColor = 'rgba(34,200,136,0.7)';
+        stockEl.style.background  = 'rgba(34,200,136,0.06)';
+        setTimeout(() => { if(stockEl) { stockEl.style.borderColor = ''; stockEl.style.background = ''; } }, 2000);
+      }
+
+      updateMessagePreview();
+      beep(700, 0.05);
+
+    } catch(e) {
+      if (stockEl) stockEl.style.borderColor = '';
     }
+  }
 
-    // Match found — fill in vehicle fields
-    const yearEl  = document.getElementById('nb-year');
-    const makeEl  = document.getElementById('nb-make');
-    const modelEl = document.getElementById('nb-model');
-
-    if (yearEl && match.year)   yearEl.value  = match.year;
-    if (modelEl && match.model) modelEl.value = match.model + (match.trim ? ' ' + match.trim : '');
-
-    if (makeEl && match.make) {
-      const opt = Array.from(makeEl.options).find(o =>
-        o.value.toLowerCase() === match.make.toLowerCase()
-      );
-      if (opt) makeEl.value = opt.value;
-      else makeEl.value = 'Kia'; // fallback — it's all Kia inventory
-    }
-
-    // Flash green on stock field to confirm match
-    if (stockEl) {
-      stockEl.style.borderColor = 'rgba(34,200,136,0.7)';
-      stockEl.style.background  = 'rgba(34,200,136,0.06)';
-      setTimeout(() => {
-        if(stockEl) { stockEl.style.borderColor = ''; stockEl.style.background = ''; }
-      }, 2000);
-    }
-
-    updateMessagePreview();
-    beep(700, 0.05);
+  // Debounced lookup — fires 800ms after user stops typing
+  function scheduleLookup(stockNumber) {
+    clearTimeout(_lookupTimer);
+    _lookupTimer = setTimeout(() => lookupStock(stockNumber), 800);
   }
 
   const VENDOR_MAP = {
@@ -592,11 +578,15 @@ document.addEventListener('DOMContentLoaded', function () {
     previewEl.textContent=preview.trim(); previewEl.style.color='rgba(255,255,255,0.6)';
   }
 
-  // Wire up stock field blur to trigger lookup
+  // Wire up stock field — lookup on blur AND debounced on input
   const _stockEl = document.getElementById('nb-stock');
   if (_stockEl) {
     _stockEl.addEventListener('blur', function() {
+      clearTimeout(_lookupTimer);
       lookupStock(this.value.trim());
+    });
+    _stockEl.addEventListener('input', function() {
+      scheduleLookup(this.value.trim());
     });
   }
 
@@ -1027,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // After scan fills form, also try stock lookup to fill vehicle if not already present
     if(data.stockNumber) {
-      setTimeout(()=>lookupStock(data.stockNumber), 200);
+      setTimeout(()=>lookupStock(data.stockNumber), 300);
     }
 
     updateMessagePreview(); beep(523,0.08); setTimeout(()=>beep(784,0.1),120);
@@ -1166,8 +1156,5 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
-
-  // Pre-warm inventory cache in background so first lookup is instant
-  setTimeout(()=>getInventory(), 3000);
 
 }); // end DOMContentLoaded
