@@ -96,20 +96,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     try {
       const res = await fetch(
-        'https://websites-search.api.carscommerce.inc/api/v1/listings/5382487/search',
+        'https://towbin-inventory.lizethmadrigal33.workers.dev',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            page: 1,
-            perPage: 1000,
-            filters: { status: ['publish', 'modified', 'pend-sale'] },
-            requestedFields: ['stock', 'year', 'make', 'model', 'trim', 'type']
-          })
+          body: JSON.stringify({ action: 'getAll' })
         }
       );
       const data = await res.json();
-      _inventoryCache = (data && data.data && data.data.listings) ? data.data.listings : [];
+      _inventoryCache = (data && data.listings) ? data.listings : [];
       _inventoryCacheTime = Date.now();
       return _inventoryCache;
     } catch(e) {
