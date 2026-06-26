@@ -1,5 +1,5 @@
 /* ============================================================
-   KIA DUE BILL TRACKER — app.js v2.3
+   KIA DUE BILL TRACKER — app.js v2.4
    Towbin Kia · Telluride UI + Full Send/Vendor/Note Functionality
    + Stock Number Auto-Lookup via Towbin Kia Inventory API
    + Vendor outreach always logged to Google Sheet on bill save
@@ -95,14 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return _inventoryCache;
     }
     try {
-      const res = await fetch(
-        'https://towbin-inventory.lizethmadrigal33.workers.dev',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getAll' })
-        }
-      );
+      const res = await fetch('https://towbin-inventory.lizethmadrigal33.workers.dev');
       const data = await res.json();
       _inventoryCache = (data && data.listings) ? data.listings : [];
       _inventoryCacheTime = Date.now();
